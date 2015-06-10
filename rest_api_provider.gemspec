@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ['andrei.chernykh@gmail.com']
 
   spec.summary       = %q{REST API provider.}
-  spec.description   = %q{The provider for REST APIs. Simplify requesting and mapping to POCO.}
+  spec.description   = %q{The provider for REST APIs. Simplify requesting and mapping JSON to objects.}
   spec.homepage      = ''
   spec.license       = 'MIT'
 
