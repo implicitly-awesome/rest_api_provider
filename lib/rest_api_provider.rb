@@ -135,6 +135,7 @@ module RestApiProvider
         resp = conn.send(http_verb) do |req|
           req.url path
           req.headers = headers if headers.any?
+          req.headers['Authorization'] = RestApiProvider.configuration.basic_auth_token unless RestApiProvider.configuration.basic_auth_token.nil?
           req.params = params if params.any?
           req.body = body.to_json if body.any?
           request = req
