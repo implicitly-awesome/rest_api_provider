@@ -27,11 +27,11 @@ module RestApiProvider
   end
 
   class Configuration
-    attr_accessor :api_root, :basic_auth_token
+    attr_accessor :api_root, :auth_token
 
     def initialize
       @api_root = 'http://'
-      @basic_auth_token = nil
+      @auth_token = nil
     end
   end
 
@@ -135,7 +135,7 @@ module RestApiProvider
         resp = conn.send(http_verb) do |req|
           req.url path
           req.headers = headers if headers.any?
-          req.headers['Authorization'] = RestApiProvider.configuration.basic_auth_token unless RestApiProvider.configuration.basic_auth_token.nil?
+          req.headers['Authorization'] = RestApiProvider.configuration.auth_token unless RestApiProvider.configuration.auth_token.nil?
           req.params = params if params.any?
           req.body = body.to_json if body.any?
           request = req
