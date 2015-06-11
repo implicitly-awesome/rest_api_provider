@@ -291,7 +291,7 @@ module RestApiProvider
       # if method name has = sign at the end (a=,b =, etc.)
       if key =~ /=$/
         # get the method name without = sign
-        key = RestApiProvider.underscore(key.chop).to_sym
+        key = key.chop.underscore.to_sym
         # if we've defined a proper field in model (entity) class
         if self.class.fields.key?(key)
           # if earlier defined field has such data type as assigned value
@@ -330,24 +330,11 @@ module RestApiProvider
         # if method name has not = sign at the end (a,b, etc.)
       else
         # get a method name
-        key = RestApiProvider.underscore(key).to_sym
+        key = key.underscore.to_sym
         # if attribute exists (and a proper field was defined in the model's class) - just return it
         @attributes[key] if self.class.fields.key?(key)
       end
     end
-  end
-
-  private
-
-  def self.underscore(camel_cased_word)
-    return camel_cased_word unless camel_cased_word =~ /[A-Z-]|::/
-    word = camel_cased_word.to_s.gsub('::'.freeze, '/'.freeze)
-    word.gsub!(/(?:(?<=([A-Za-z\d]))|\b)(#{inflections.acronym_regex})(?=\b|[^a-z])/) { "#{$1 && '_'}#{$2.downcase}" }
-    word.gsub!(/([A-Z\d]+)([A-Z][a-z])/,'\1_\2')
-    word.gsub!(/([a-z\d])([A-Z])/,'\1_\2')
-    word.tr!('-', '_')
-    word.downcase!
-    word
   end
 
 end
