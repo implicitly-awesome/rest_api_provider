@@ -27,10 +27,11 @@ module RestApiProvider
   end
 
   class Configuration
-    attr_accessor :api_root
+    attr_accessor :api_root, :basic_auth_token
 
     def initialize
       @api_root = 'http://'
+      @basic_auth_token = nil
     end
   end
 
