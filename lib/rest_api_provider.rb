@@ -109,7 +109,7 @@ module RestApiProvider
       json = JSON.parse(json) if json.is_a? String
       result = []
       json.each do |json_hash|
-        result << map2object(json_hash, klass.new)
+        result << map2object(json_hash, klass)
       end
       result
     end
@@ -120,7 +120,7 @@ module RestApiProvider
       json.each do |group, objects|
         result[group] = []
         objects.each do |object|
-          result[group] << map2object(object, klass.new)
+          result[group] << map2object(object, klass)
         end
       end
       result
