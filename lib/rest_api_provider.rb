@@ -93,8 +93,9 @@ module RestApiProvider
 
   class JsonMapper
 
-    def self.map2object(json, obj)
+    def self.map2object(json, klass)
       json_hash = json.is_a?(String) ? JSON.parse(json) : json
+      obj = klass.new
       if obj && json_hash.any?
         json_hash.each do |k, v|
           obj.send("#{k}=", v)
@@ -230,10 +231,8 @@ module RestApiProvider
           RestApiProvider::JsonMapper.map2hash(resp, self)
           # map json to the model object
         else
-          # create a model object
-          model = self.new
           # map & return the model object
-          RestApiProvider::JsonMapper.map2object(resp, model)
+          RestApiProvider::JsonMapper.map2object(resp, self)
         end
       end
     end
@@ -241,15 +240,13 @@ module RestApiProvider
     # .get, .post, .put, .delete methods
     RestApiProvider::HTTP_VERBS.each do |verb|
       # define class singleton methods which will define concrete class singleton methods
-      define_singleton_method(verb) do |method_name, custom_path=''|
+      define_singleton_method(verb) do |method_name, custom_path='', target_class=self|
         # get a name of future method
         method_name = method_name.underscore.to_sym if method_name.is_a? String
         # if path defined - override common path
         request_path = custom_path || path
         # define class singleton method with name constructed earlier
         define_singleton_method(method_name) do |slugs: {}, params: {}, body: {}, headers: {}|
-          # create a model object
-          model = self.new
           # fill the common path with given slugs
           # if slugs were given - replace :slug masks with proper values
           if slugs.any?
@@ -262,10 +259,15 @@ module RestApiProvider
           end
           # make a request, get a json
           resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, params: params, body: body, headers: headers
-          # map json to the model object
-          RestApiProvider::JsonMapper.map2object(resp, model)
-          # return the model object
-          model
+          # map json to a proper object
+          case target_class
+            when Array
+              RestApiProvider::JsonMapper.map2array(resp, self)
+            when Hash
+              RestApiProvider::JsonMapper.map2hash(resp, self)
+            else
+              RestApiProvider::JsonMapper.map2object(resp, self)
+          end
         end
       end
     end
