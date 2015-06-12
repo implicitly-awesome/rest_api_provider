@@ -1,5 +1,6 @@
 require 'rest_api_provider/version'
 require 'json'
+require 'active_support/inflector'
 
 module RestApiProvider
 
@@ -94,10 +95,10 @@ module RestApiProvider
   class JsonMapper
 
     def self.map2object(json, klass)
-      json_hash = json.is_a?(String) ? JSON.parse(json) : json
-      obj = klass.new
-      if obj && json_hash.any?
-        json_hash.each do |k, v|
+      source = json.is_a?(String) ? JSON.parse(json) : json
+      obj = klass.is_a?(Class) ? klass.new : klass
+      if obj && source.any?
+        source.each do |k, v|
           obj.send("#{k}=", v)
         end
         return obj
@@ -183,8 +184,8 @@ module RestApiProvider
         @path = path || self.name.to_s.pluralize.downcase
       end
 
-      def field(name, type: String, default: nil)
-        unless RestApiProvider::DATA_TYPES.include?(type)
+      def field(name, type: nil, default: nil)
+        if type && !RestApiProvider::DATA_TYPES.include?(type)
           raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}"
         end
         name = name.underscore.to_sym if name.is_a? String
@@ -294,16 +295,12 @@ module RestApiProvider
         key = key.chop.underscore.to_sym
         # if we've defined a proper field in model (entity) class
         if self.class.fields.key?(key)
-          # if earlier defined field has such data type as assigned value
-          if args[0].is_a?(self.class.fields[key][:type])
-            # just store the value of the model's attribute
-            @attributes[key] = args[0]
-            # or try to cast types, if error occurs - do nothing (just will not store the value)
-          else
-            case self.class.fields[key][:type].to_s
+          # if field's type was specified (explicitly)
+          if !self.class.fields[key][:type].nil?
+            case self.class.fields[key][:type].name
               when 'String'
-                @attributes[key] = args[0] # json always provides strings
-              when 'Integer'
+                @attributes[key] = args[0].to_s
+              when 'Integer', 'Fixnum', 'Bignum'
                 begin
                   @attributes[key] = Integer(args[0])
                 rescue
@@ -321,9 +318,22 @@ module RestApiProvider
                 rescue
                   # do nothing
                 end
+              when 'Array', 'Hash'
+                begin
+                  @attributes[key] = JSON.parse(args[0].to_json)
+                rescue
+                  # do nothing
+                end
               else
                 # given type is not supported by implicit casting
                 raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}, given: #{args[0].class}"
+            end
+          else
+            # else assign a value as-is
+            begin
+              @attributes[key] = JSON.parse(args[0].to_json)
+            rescue
+              @attributes[key] = args[0]
             end
           end
         end

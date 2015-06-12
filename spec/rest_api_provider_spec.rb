@@ -122,7 +122,7 @@ describe RestApiProvider do
       context 'with an implicit type' do
         it 'assigns new value of any type' do
           resource_obj.c = {arr: ['123', 123]}
-          expect(resource_obj.c).to eq({arr: ['123', 123]})
+          expect(resource_obj.c).to eq({'arr' => ['123', 123]})
         end
       end
     end
@@ -154,10 +154,10 @@ describe RestApiProvider do
       field :code
       field :number, type: Integer
 
-      validates :name, presence:true
-      validates :password, length:{within:6..12}
-      validates :code, length:{minimum:6, maximum:8}
-      validates :number, numericality:true, minimum:1, maximum:10
+      validates :name, presence: true
+      validates :password, length: {within: 6..12}
+      validates :code, length: {minimum: 6, maximum: 8}
+      validates :number, numericality: true, minimum: 1, maximum: 10
     end
 
     it 'should be able to register a validation' do
@@ -215,13 +215,13 @@ describe RestApiProvider do
     end
 
     it 'should be able to validate that a numeric field is above or equal to a minimum' do
-      a = SimpleValidationExample.new(number:0)
+      a = SimpleValidationExample.new(number: 0)
       a.valid?
       expect(a.errors[:number].size).to be > 0
     end
 
     it 'should be able to validate that a numeric field is above or equal to a minimum' do
-      a = SimpleValidationExample.new(number:50)
+      a = SimpleValidationExample.new(number: 50)
       a.valid?
       expect(a.errors[:number].size).to be > 0
     end
@@ -261,37 +261,72 @@ describe RestApiProvider do
 
   describe RestApiProvider::JsonMapper do
     subject(:mapper) { RestApiProvider::JsonMapper }
-    let(:geojson) { "{\"a\":\"2\",\"b\":\"str\"}" }
-    let(:model) do
-      class TestModel < RestApiProvider::Resource
-        field :a, type: Integer, default: 1
-        field :b, type: String
-      end
-      TestModel.new
+    class TestModel < RestApiProvider::Resource
+      field :a, type: Integer, default: 1
+      field :b, type: String
     end
+    let(:model) { TestModel.new }
 
     context '.map2object with object' do
+      it 'creates object with proper fields' do
+        obj = mapper.map2object("{\"a\":\"2\",\"b\":\"str\"}" , TestModel)
+        expect(obj.a).to eq(2)
+        expect(obj.b).to eq('str')
+      end
+
       it 'updates model field with proper type' do
-        mapper.map2object(geojson, model)
+        mapper.map2object("{\"a\":\"2\",\"b\":\"str\"}" , model)
         expect(model.a).to eq(2)
         expect(model.b).to eq('str')
       end
 
       it 'does not update model field with unexpected type' do
-        json = "{\"a\":\"str\",\"b\":\"1\"}"
-
-        mapper.map2object(json, model)
+        mapper.map2object("{\"a\":\"str\",\"b\":\"1\"}", model)
         expect(model.a).to eq(1)
         expect(model.b).to eq('1')
       end
 
       it 'does not update model with unexpected field' do
-        json = "{\"a\":\"2\",\"b\":\"1\",\"c\":\"str\"}"
-
-        mapper.map2object(json, model)
+        mapper.map2object("{\"a\":\"2\",\"b\":\"1\",\"c\":\"str\"}", model)
         expect(model.a).to eq(2)
         expect(model.b).to eq('1')
         expect(model.c).to be_nil
+      end
+
+      it 'maps Array type implicitly' do
+        class TestModel < RestApiProvider::Resource
+          field :a
+          field :b, type: String
+        end
+        obj = mapper.map2object("{\"a\":[1,\"2\",3,\"4\"],\"b\":2}" , TestModel)
+        expect(obj.a).to eq([1,'2',3,'4'])
+        expect(obj.b).to eq('2')
+      end
+
+      it 'maps Array type explicitly' do
+        class TestModel < RestApiProvider::Resource
+          field :a, type: Array
+          field :b, type: String
+        end
+        obj = mapper.map2object("{\"a\":[1,\"2\",3,\"4\"],\"b\":\"str\"}" , TestModel)
+        expect(obj.a).to eq([1,'2',3,'4'])
+        expect(obj.b).to eq('str')
+      end
+
+      it 'maps Hash type implicitly' do
+        class TestModel < RestApiProvider::Resource
+          field :a
+        end
+        obj = mapper.map2object("{\"a\":{\"aa\":\"2\",\"bb\":\"4\"}}" , TestModel)
+        expect(obj.a).to eq({'aa'=>'2','bb'=>'4'})
+      end
+
+      it 'maps Hash type explicitly' do
+        class TestModel < RestApiProvider::Resource
+          field :a, type: Hash
+        end
+        obj = mapper.map2object("{\"a\":{\"aa\":\"2\",\"bb\":\"4\"}}" , TestModel)
+        expect(obj.a).to eq({'aa'=>'2','bb'=>'4'})
       end
     end
   end
