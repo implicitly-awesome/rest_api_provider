@@ -44,6 +44,16 @@ class TestResource < RestApiProvider::Resource
 end
 ```
 
+Supported field types:
+* String
+* Integer
+* Fixnum
+* Bignum
+* Float
+* Date
+* Array
+* Hash
+
 ### Slugs and included Resources
 Consider _slug_ as an identifier of the particular Resource item.
 You can define included Resources like this:
