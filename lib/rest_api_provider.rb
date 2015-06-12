@@ -94,8 +94,13 @@ module RestApiProvider
 
   class JsonMapper
 
-    def self.map2object(json, klass)
-      source = json.is_a?(String) ? JSON.parse(json) : json
+    def self.map2object(json, klass, data_path_elements=[])
+      begin
+        source = json.is_a?(String) ? JSON.parse(json) : json
+      rescue
+        return nil
+      end
+      data_path_elements.each { |elem| source = source.fetch(elem) }
       obj = klass.is_a?(Class) ? klass.new : klass
       if obj && source.any?
         source.each do |k, v|
@@ -106,18 +111,28 @@ module RestApiProvider
       nil
     end
 
-    def self.map2array(json, klass)
-      json = JSON.parse(json) if json.is_a? String
+    def self.map2array(json, klass, data_path_elements)
       result = []
+      begin
+        json = JSON.parse(json) if json.is_a? String
+      rescue
+        result
+      end
+      data_path_elements.each { |elem| json = json.fetch(elem) }
       json.each do |json_hash|
         result << map2object(json_hash, klass)
       end
       result
     end
 
-    def self.map2hash(json, klass)
-      json = JSON.parse(json) if json.is_a? String
+    def self.map2hash(json, klass, data_path_elements)
       result = {}
+      begin
+        json = JSON.parse(json) if json.is_a? String
+      rescue
+        result
+      end
+      data_path_elements.each { |elem| json = json.fetch(elem) }
       json.each do |group, objects|
         result[group] = []
         objects.each do |object|
@@ -241,7 +256,7 @@ module RestApiProvider
     # .get, .post, .put, .delete methods
     RestApiProvider::HTTP_VERBS.each do |verb|
       # define class singleton methods which will define concrete class singleton methods
-      define_singleton_method(verb) do |method_name, custom_path='', target_class=self|
+      define_singleton_method(verb) do |method_name, custom_path='', result:self, data_path:''|
         # get a name of future method
         method_name = method_name.underscore.to_sym if method_name.is_a? String
         # if path defined - override common path
@@ -260,14 +275,16 @@ module RestApiProvider
           end
           # make a request, get a json
           resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, params: params, body: body, headers: headers
+          # get an array of elements of path to data source element
+          data_path_elements = data_path.split('/').select{|x| !x.chop.empty?}
           # map json to a proper object
-          case target_class
+          case result
             when Array
-              RestApiProvider::JsonMapper.map2array(resp, self)
+              RestApiProvider::JsonMapper.map2array(resp, self, data_path_elements)
             when Hash
-              RestApiProvider::JsonMapper.map2hash(resp, self)
+              RestApiProvider::JsonMapper.map2hash(resp, self, data_path_elements)
             else
-              RestApiProvider::JsonMapper.map2object(resp, self)
+              RestApiProvider::JsonMapper.map2object(resp, self, data_path_elements)
           end
         end
       end

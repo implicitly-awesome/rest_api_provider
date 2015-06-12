@@ -103,6 +103,12 @@ TestResource.find slugs:{slug_1: 'qwe', slug_2: 'rty'}, params: {}, body: {}, he
 * body: {} - request's body
 * headers: {} - request's headers
 
+Default methods has some limitations:
+* their target element (response source element) always root
+* .all result - Array object
+* .grouped result - Hash object
+* .find, .create, .update, .destroy result - itself object
+
 ### Custom methods
 You always can declare your own custom methods ``` http_verb method_name, custom_path ```
 ``` ruby
@@ -120,7 +126,7 @@ class TestResource < RestApiProvider::Resource
 end
 ```
 
-You can specify mapping output class (Hash or Array, by default - your Resource class itself):
+You can specify mapping result's class (Hash or Array, by default - your Resource class itself):
 ``` ruby
 class TestResource < RestApiProvider::Resource
   set_path '/test_resources/:slug'
@@ -128,7 +134,19 @@ class TestResource < RestApiProvider::Resource
   field :slug
   field :number
 
-  get :custom_get, '/some_resource/:some_slug/some_method', Hash
+  get :custom_get, '/some_resource/:some_slug/some_method', result: Hash
+end
+```
+
+You're free to specify data source element path for mapping (by default - root) if your Resource data is not defined in the response's root:
+``` ruby
+class TestResource < RestApiProvider::Resource
+  set_path '/test_resources/:slug'
+
+  field :slug
+  field :number
+
+  get :custom_get, '/some_resource/:some_slug/some_method', result: Hash, data_path: '/data/sub_data'
 end
 ```
 

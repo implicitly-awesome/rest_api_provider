@@ -328,6 +328,33 @@ describe RestApiProvider do
         obj = mapper.map2object("{\"a\":{\"aa\":\"2\",\"bb\":\"4\"}}" , TestModel)
         expect(obj.a).to eq({'aa'=>'2','bb'=>'4'})
       end
+
+      it '.map2object works by path' do
+        class TestModel < RestApiProvider::Resource
+          field :a
+        end
+        path_elements = ['a','aa','e']
+        obj = mapper.map2object("{\"a\":{\"aa\":{\"c\":\"d\",\"e\":{\"a\":\"g\"}},\"bb\":\"4\"}}" , TestModel, path_elements)
+        expect(obj.a).to eq('g')
+      end
+
+      it '.map2array works by path' do
+        class TestModel < RestApiProvider::Resource
+          field :a, type: Array
+        end
+        path_elements = ['a','aa','e']
+        arr = mapper.map2array("{\"a\":{\"aa\":{\"c\":\"d\",\"e\":[{\"a\":[1,\"2\",3]}]},\"bb\":\"4\"}}" , TestModel, path_elements)
+        expect(arr.first.a).to eq([1,'2',3])
+      end
+
+      it '.map2hash works by path' do
+        class TestModel < RestApiProvider::Resource
+          field :a, type: Hash
+        end
+        path_elements = ['a','aa','e']
+        obj = mapper.map2hash("{\"a\":{\"aa\":{\"c\":\"d\",\"e\":{\"group1\":[{\"a\":[1,\"2\",3]}]}},\"bb\":\"4\"}}" , TestModel, path_elements)
+        expect(obj['group1'].first.a).to eq([1,'2',3])
+      end
     end
   end
 end
