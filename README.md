@@ -113,11 +113,28 @@ class TestResource < RestApiProvider::Resource
   field :number
   field :description
 
-  get :custom_method, '/some_resource/:some_slug/some_method'
-  post :custom_method, '/some_resource/:some_slug/some_method'
-  put :custom_method, '/some_resource/:some_slug/some_method'
-  delete :custom_method, '/some_resource/:some_slug/some_method'
+  get :custom_get, '/some_resource/:some_slug/some_method'
+  post :custom_post, '/some_resource/:some_slug/some_method'
+  put :custom_put, '/some_resource/:some_slug/some_method'
+  delete :custom_delete, '/some_resource/:some_slug/some_method'
 end
+```
+
+You can specify mapping output class (Hash or Array, by default - your Resource class itself):
+``` ruby
+class TestResource < RestApiProvider::Resource
+  set_path '/test_resources/:slug'
+
+  field :slug
+  field :number
+
+  get :custom_get, '/some_resource/:some_slug/some_method', Hash
+end
+```
+
+The same usage:
+```ruby
+TestResource.custom_get slugs:{some_slug: 'qwe'}, params: {}, body: {}, headers: {}
 ```
 
 ### Paths
