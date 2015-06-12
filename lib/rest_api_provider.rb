@@ -100,7 +100,7 @@ module RestApiProvider
       rescue
         return nil
       end
-      data_path_elements.each { |elem| source = source.fetch(elem) }
+      data_path_elements.each { |elem| source = source[elem] if source[elem] }
       obj = klass.is_a?(Class) ? klass.new : klass
       if obj && source.any?
         source.each do |k, v|
@@ -111,28 +111,28 @@ module RestApiProvider
       nil
     end
 
-    def self.map2array(json, klass, data_path_elements)
+    def self.map2array(json, klass, data_path_elements=[])
       result = []
       begin
         json = JSON.parse(json) if json.is_a? String
       rescue
         result
       end
-      data_path_elements.each { |elem| json = json.fetch(elem) }
+      data_path_elements.each { |elem| json = json[elem] if json[elem] }
       json.each do |json_hash|
         result << map2object(json_hash, klass)
       end
       result
     end
 
-    def self.map2hash(json, klass, data_path_elements)
+    def self.map2hash(json, klass, data_path_elements=[])
       result = {}
       begin
         json = JSON.parse(json) if json.is_a? String
       rescue
         result
       end
-      data_path_elements.each { |elem| json = json.fetch(elem) }
+      data_path_elements.each { |elem| json = json[elem] if json[elem] }
       json.each do |group, objects|
         result[group] = []
         objects.each do |object|
