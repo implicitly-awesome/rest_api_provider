@@ -278,10 +278,10 @@ module RestApiProvider
           # get an array of elements of path to data source element
           data_path_elements = data_path.split('/').select{|x| !x.chop.empty?}
           # map json to a proper object
-          case result
-            when Array
+          case result.name
+            when 'Array'
               RestApiProvider::JsonMapper.map2array(resp, self, data_path_elements)
-            when Hash
+            when 'Hash'
               RestApiProvider::JsonMapper.map2hash(resp, self, data_path_elements)
             else
               RestApiProvider::JsonMapper.map2object(resp, self, data_path_elements)
