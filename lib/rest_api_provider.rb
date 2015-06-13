@@ -256,7 +256,7 @@ module RestApiProvider
     # .get, .post, .put, .delete methods
     RestApiProvider::HTTP_VERBS.each do |verb|
       # define class singleton methods which will define concrete class singleton methods
-      define_singleton_method(verb) do |method_name, custom_path='', result:self, data_path:''|
+      define_singleton_method(verb) do |method_name, custom_path=nil, result:self, data_path:''|
         # get a name of future method
         method_name = method_name.underscore.to_sym if method_name.is_a? String
         # if path defined - override common path
