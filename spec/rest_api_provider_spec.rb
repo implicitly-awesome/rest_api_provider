@@ -32,6 +32,8 @@ describe RestApiProvider do
       field :c
 
       get :get_tests, '/tests'
+      get :custom_result, result: Hash
+      get :custom_data_path, data_path: '/a/c/d'
     end
 
     describe 'resource path' do
@@ -76,8 +78,28 @@ describe RestApiProvider do
       end
 
       context 'with custom methods' do
-        it 'provides custom method' do
+        it 'supports custom method' do
           expect(TestResource.respond_to?(:get_tests)).to be_truthy
+        end
+
+        it 'supports result class definition' do
+          allow(RestApiProvider::Requester).to receive(:make_request_with).and_return({g1:[{a:1,b:2,c:3},{a:4,b:5,c:6}],g2:[{a:7,b:8,c:9}]}.to_json)
+          expect(TestResource.custom_result['g1'][0].a).to eq(1)
+          expect(TestResource.custom_result['g1'][0].b).to eq('2')
+          expect(TestResource.custom_result['g1'][0].c).to eq(3)
+          expect(TestResource.custom_result['g1'][1].a).to eq(4)
+          expect(TestResource.custom_result['g1'][1].b).to eq('5')
+          expect(TestResource.custom_result['g1'][1].c).to eq(6)
+          expect(TestResource.custom_result['g2'][0].a).to eq(7)
+          expect(TestResource.custom_result['g2'][0].b).to eq('8')
+          expect(TestResource.custom_result['g2'][0].c).to eq(9)
+        end
+
+        it 'supports data path' do
+          allow(RestApiProvider::Requester).to receive(:make_request_with).and_return({a:{c:{d:{a:2,b:3,c:4}}},b:{a:1}}.to_json)
+          expect(TestResource.custom_data_path.a).to eql(2)
+          expect(TestResource.custom_data_path.b).to eql('3')
+          expect(TestResource.custom_data_path.c).to eql(4)
         end
       end
     end
@@ -333,27 +355,31 @@ describe RestApiProvider do
         class TestModel < RestApiProvider::Resource
           field :a
         end
-        path_elements = ['a','aa','e']
-        obj = mapper.map2object("{\"a\":{\"aa\":{\"c\":\"d\",\"e\":{\"a\":\"g\"}},\"bb\":\"4\"}}" , TestModel, path_elements)
-        expect(obj.a).to eq('g')
+        path_elements = ['a','aa','d']
+        obj = mapper.map2object({a:{aa:{c:1,d:{a:2}},bb:0}}.to_json, TestModel, path_elements)
+        expect(obj.a).to eq(2)
       end
 
       it '.map2array works by path' do
         class TestModel < RestApiProvider::Resource
-          field :a, type: Array
+          field :a
         end
-        path_elements = ['a','aa','e']
-        arr = mapper.map2array("{\"a\":{\"aa\":{\"c\":\"d\",\"e\":[{\"a\":[1,\"2\",3]}]},\"bb\":\"4\"}}" , TestModel, path_elements)
-        expect(arr.first.a).to eq([1,'2',3])
+        path_elements = ['a','aa','d']
+        arr = mapper.map2array({a:{aa:{c:1,d:[{a:2},{a:3}]},bb:0}}.to_json, TestModel, path_elements)
+        expect(arr[0].a).to eq(2)
+        expect(arr[1].a).to eq(3)
       end
 
       it '.map2hash works by path' do
         class TestModel < RestApiProvider::Resource
-          field :a, type: Hash
+          field :a
         end
-        path_elements = ['a','aa','e']
-        obj = mapper.map2hash("{\"a\":{\"aa\":{\"c\":\"d\",\"e\":{\"group1\":[{\"a\":[1,\"2\",3]}]}},\"bb\":\"4\"}}" , TestModel, path_elements)
-        expect(obj['group1'].first.a).to eq([1,'2',3])
+        path_elements = ['a','aa','d']
+        obj = mapper.map2hash({a:{aa:{c:1,d:{g1:[{a:2},{a:3}],g2:[{a:4},{a:5}]}},bb:0}}.to_json, TestModel, path_elements)
+        expect(obj['g1'][0].a).to eq(2)
+        expect(obj['g1'][1].a).to eq(3)
+        expect(obj['g2'][0].a).to eq(4)
+        expect(obj['g2'][1].a).to eq(5)
       end
     end
   end

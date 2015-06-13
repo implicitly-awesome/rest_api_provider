@@ -276,7 +276,7 @@ module RestApiProvider
           # make a request, get a json
           resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, params: params, body: body, headers: headers
           # get an array of elements of path to data source element
-          data_path_elements = data_path.split('/').select{|x| !x.chop.empty?}
+          data_path_elements = data_path.split('/').select{|x| !x.strip.empty?}
           # map json to a proper object
           case result.name
             when 'Array'
