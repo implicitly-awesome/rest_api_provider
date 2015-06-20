@@ -167,7 +167,7 @@ module RestApiProvider
       rescue StandardError => e
         raise RestApiProvider::ApiError.new(500, request), e.message
       end
-      if resp.status == 200
+      if (100...400).to_a.include?(resp.status)
         resp.body
       else
         raise RestApiProvider::ApiError.new(resp.status, request), resp.body
