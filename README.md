@@ -23,6 +23,9 @@ You can define a simple Resource like this:
 ``` ruby
 class TestResource < RestApiProvider::Resource
   set_path '/test_resources/:slug'
+  
+  # 'application/json' - default
+  content_type 'application/x-www-form-urlencoded'
 
   # include only fields that you want to map to object
   field :slug
