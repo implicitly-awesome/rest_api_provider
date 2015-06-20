@@ -58,8 +58,14 @@ module RestApiProvider
         value = self.send(validation[:field_name])
         validation[:options].each do |type, options|
           if type == :presence
-            if value.nil?
-              @errors[validation[:field_name]] << 'must be present'
+            if value.class == String
+              if value.empty?
+                @errors[validation[:field_name]] << 'must be present'
+              end
+            else
+              if value.nil?
+                @errors[validation[:field_name]] << 'must be present'
+              end
             end
           elsif type == :length
             if options[:within]

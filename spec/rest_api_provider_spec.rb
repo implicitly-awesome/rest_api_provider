@@ -210,6 +210,13 @@ describe RestApiProvider do
       expect(a.errors[:name].size).to eq(1)
     end
 
+    it 'should be invalid if a required value is a blank string' do
+      a = SimpleValidationExample.new
+      a.name = ''
+      a.valid?
+      expect(a.errors[:name].size).to eq(1)
+    end
+
     it 'should be valid if a required value is present' do
       a = SimpleValidationExample.new
       a.name = 'John'
