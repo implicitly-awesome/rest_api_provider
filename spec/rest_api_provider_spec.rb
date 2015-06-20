@@ -43,10 +43,27 @@ describe RestApiProvider do
 
       it 'assigns path value' do
         expect(TestResource.path).to eq('/tests/:slug')
-        class TestResource < RestApiProvider::Resource;
+        class TestResource < RestApiProvider::Resource
           resource_path '/t/:slug';
         end
         expect(TestResource.path).to eq('/t/:slug')
+      end
+    end
+
+    describe 'content type' do
+      it 'has .resource_path' do
+        expect(TestResource.respond_to?(:content_type)).to be_truthy
+      end
+
+      it 'has default value' do
+        expect(TestResource.content).to eq('application/json')
+      end
+
+      it 'assigns path value' do
+        class TestResource < RestApiProvider::Resource
+          content_type 'application/x-www-form-urlencoded';
+        end
+        expect(TestResource.content).to eq('application/x-www-form-urlencoded')
       end
     end
 

@@ -145,7 +145,7 @@ module RestApiProvider
 
   class Requester
 
-    def self.make_request_with(http_verb: HTTP_VERBS.first, path: '', params: {}, body: {}, headers: {})
+    def self.make_request_with(http_verb: HTTP_VERBS.first, path: '', content_type:'', params: {}, body: {}, headers: {})
       conn = set_connection
       request = nil
       begin
@@ -153,6 +153,7 @@ module RestApiProvider
           req.url path
           req.headers = headers if headers.any?
           req.headers['Authorization'] = RestApiProvider.configuration.auth_token unless RestApiProvider.configuration.auth_token.nil?
+          req.headers['Content-Type'] = content_type
           req.params = params if params.any?
           req.body = body.to_json if body.any?
           request = req
@@ -195,8 +196,13 @@ module RestApiProvider
     module ClassMethods
 
       # set path
-      def resource_path(path)
-        @path = path || self.name.to_s.pluralize.downcase
+      def resource_path(path=self.name.to_s.pluralize.downcase)
+        @path = path
+      end
+
+      # set content type
+      def content_type(content)
+        @content = content unless content.to_s.strip.empty?
       end
 
       def field(name, type: nil, default: nil)
@@ -214,6 +220,10 @@ module RestApiProvider
 
     def self.path
       @path
+    end
+
+    def self.content
+      @content || 'application/json'
     end
 
     # inject class instance variables & methods into Entity subclass
@@ -237,7 +247,7 @@ module RestApiProvider
           request_path.gsub!(/:.+/, '')
         end
         # make a request, get a json
-        resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, params: params, body: body, headers: headers
+        resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, content_type: content, params: params, body: body, headers: headers
         # map json to the model objects array
         if method_name == :all
           # map & return the array
@@ -274,7 +284,7 @@ module RestApiProvider
             request_path.gsub!(/:.+/, '')
           end
           # make a request, get a json
-          resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, params: params, body: body, headers: headers
+          resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, content_type: content, params: params, body: body, headers: headers
           # get an array of elements of path to data source element
           data_path_elements = data_path.split('/').select{|x| !x.strip.empty?}
           # map json to a proper object
