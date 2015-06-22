@@ -254,6 +254,7 @@ module RestApiProvider
         end
         # make a request, get a json
         resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, content_type: content, params: params, body: body, headers: headers
+        request_path = nil
         # map json to the model objects array
         if method_name == :all
           # map & return the array
@@ -291,6 +292,7 @@ module RestApiProvider
           end
           # make a request, get a json
           resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, content_type: content, params: params, body: body, headers: headers
+          request_path = nil
           # get an array of elements of path to data source element
           data_path_elements = data_path.split('/').select{|x| !x.strip.empty?}
           # map json to a proper object
