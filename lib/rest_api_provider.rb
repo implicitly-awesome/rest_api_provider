@@ -276,7 +276,7 @@ module RestApiProvider
         # get a name of future method
         method_name = method_name.underscore.to_sym if method_name.is_a? String
         # if path defined - override common path
-        request_path = custom_path || path
+        request_path = custom_path || path.clone
         # define class singleton method with name constructed earlier
         define_singleton_method(method_name) do |slugs: {}, params: {}, body: {}, headers: {}|
           # fill the common path with given slugs
