@@ -276,11 +276,11 @@ module RestApiProvider
       define_singleton_method(verb) do |method_name, custom_path=nil, result:self, data_path:''|
         # get a name of future method
         method_name = method_name.underscore.to_sym if method_name.is_a? String
-        # if path defined - override common path
-        request_path = custom_path || path.clone
         # define class singleton method with name constructed earlier
         define_singleton_method(method_name) do |slugs: {}, params: {}, body: {}, headers: {}|
-          # fill the common path with given slugs
+          # if path defined - override common path
+          request_path = custom_path || path.clone
+          # fill the path with given slugs
           # if slugs were given - replace :slug masks with proper values
           if slugs.any?
             slugs.each do |k, v|
@@ -292,7 +292,6 @@ module RestApiProvider
           end
           # make a request, get a json
           resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, content_type: content, params: params, body: body, headers: headers
-          request_path = nil
           # get an array of elements of path to data source element
           data_path_elements = data_path.split('/').select{|x| !x.strip.empty?}
           # map json to a proper object
