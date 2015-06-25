@@ -22,7 +22,7 @@ end
 You can define a simple Resource like this:
 ``` ruby
 class TestResource < RestApiProvider::Resource
-  set_path '/test_resources/:slug'
+  resource_path '/test_resources/:slug'
   
   # 'application/json' - default
   content_type 'application/x-www-form-urlencoded'
@@ -39,7 +39,7 @@ You can define an explicit field type and a default value:
 
 ``` ruby
 class TestResource < RestApiProvider::Resource
-  set_path '/test_resources/:slug'
+  resource_path '/test_resources/:slug'
 
   field :slug
   field :title, String, default: 'Hello World!'
@@ -63,7 +63,7 @@ You can define included Resources like this:
 
 ``` ruby
 class SubResource < RestApiProvider::Resource
-  set_path '/test_resources/:resource_slug/sub_resources/:subresource_slug'
+  resource_path '/test_resources/:resource_slug/sub_resources/:subresource_slug'
 
   field :resource_slug
   field :subresource_slug
@@ -83,7 +83,7 @@ There is the list of supported (so far) ActiveRecord-like validations:
 
 ``` ruby
 class TestResource < RestApiProvider::Resource
-  set_path '/test_resources/:slug'
+  resource_path '/test_resources/:slug'
 
   field :slug
   field :number
@@ -116,7 +116,7 @@ Default methods has some limitations:
 You always can declare your own custom methods ``` http_verb method_name, custom_path ```
 ``` ruby
 class TestResource < RestApiProvider::Resource
-  set_path '/test_resources/:slug'
+  resource_path '/test_resources/:slug'
 
   field :slug
   field :number
@@ -132,7 +132,7 @@ end
 You can specify mapping result's class (Hash or Array, by default - your Resource class itself):
 ``` ruby
 class TestResource < RestApiProvider::Resource
-  set_path '/test_resources/:slug'
+  resource_path '/test_resources/:slug'
 
   field :slug
   field :number
@@ -144,7 +144,7 @@ end
 You're free to specify data source element path for mapping (by default - root) if your Resource data is not defined in the response's root:
 ``` ruby
 class TestResource < RestApiProvider::Resource
-  set_path '/test_resources/:slug'
+  resource_path '/test_resources/:slug'
 
   field :slug
   field :number
@@ -159,10 +159,10 @@ TestResource.custom_get slugs:{some_slug: 'qwe'}, params: {}, body: {}, headers:
 ```
 
 ### Paths
-```.set_path``` defines the default Resource path. But you always can declare a custom path for a particular method.
+```.resource_path``` defines the default Resource path. But you always can declare a custom path for a particular method.
 ``` ruby
 class TestResource < RestApiProvider::Resource
-  set_path '/test_resources/:slug'
+  resource_path '/test_resources/:slug'
 
   field :slug
   field :number
@@ -171,6 +171,7 @@ class TestResource < RestApiProvider::Resource
   get :custom_method, '/some_resource/:some_slug/some_method'
 end
 ```
+If you've not specified the resource_path it would be set as ```/resource_name_pluralised/:slug```
 
 ## Response mapping
 This gem awaits that request is a JSON.
