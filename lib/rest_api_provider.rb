@@ -1,11 +1,12 @@
 require 'rest_api_provider/version'
 require 'json'
 require 'active_support/inflector'
+require 'time'
 
 module RestApiProvider
 
   # supported data types
-  DATA_TYPES = [String, Integer, Fixnum, Bignum, Float, Date, Array, Hash]
+  DATA_TYPES = [String, Integer, Fixnum, Bignum, Float, Date, Time, Array, Hash]
   # supported http methods
   HTTP_VERBS = %w(get post put delete)
   # supported model's default methods
@@ -349,6 +350,12 @@ module RestApiProvider
               when 'Date'
                 begin
                   @attributes[key] = Date.parse(args[0])
+                rescue
+                  # do nothing
+                end
+              when 'Time'
+                begin
+                  @attributes[key] = Time.parse(args[0])
                 rescue
                   # do nothing
                 end

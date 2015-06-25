@@ -54,6 +54,7 @@ Supported field types:
 * Bignum
 * Float
 * Date
+* Time
 * Array
 * Hash
 
