@@ -202,7 +202,7 @@ module RestApiProvider
     module ClassMethods
 
       # set path
-      def resource_path(path=self.name.to_s.pluralize.downcase)
+      def resource_path(path)
         @path = path
       end
 
@@ -225,7 +225,7 @@ module RestApiProvider
     end
 
     def self.path
-      @path
+      @path || "/#{self.name.to_s.underscore.pluralize.downcase}/:slug"
     end
 
     def self.content

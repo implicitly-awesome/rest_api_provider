@@ -25,8 +25,6 @@ describe RestApiProvider do
 
   describe RestApiProvider::Resource do
     class TestResource < RestApiProvider::Resource
-      resource_path '/tests/:slug'
-
       field :a, type: Integer, default: 1
       field :b, type: String
       field :c
@@ -41,8 +39,11 @@ describe RestApiProvider do
         expect(TestResource.respond_to?(:resource_path)).to be_truthy
       end
 
+      it 'has default value as /resources/:slug' do
+        expect(TestResource.path).to eq('/test_resources/:slug')
+      end
+
       it 'assigns path value' do
-        expect(TestResource.path).to eq('/tests/:slug')
         class TestResource < RestApiProvider::Resource
           resource_path '/t/:slug';
         end
