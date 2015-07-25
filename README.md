@@ -181,4 +181,5 @@ So far you can get a mapping JSON to:
 * object
 * Array
 * Hash
-_If a response body is blank, then Mapper provides ::ApiResponse class object._
+
+_If a response body is blank, then ::Mapper provides ::ApiResponse class object._

@@ -311,8 +311,8 @@ describe RestApiProvider do
     end
   end
 
-  describe RestApiProvider::JsonMapper do
-    subject(:mapper) { RestApiProvider::JsonMapper }
+  describe RestApiProvider::Mapper do
+    subject(:mapper) { RestApiProvider::Mapper }
     class TestModel < RestApiProvider::Resource
       field :a, type: Integer, default: 1
       field :b, type: String

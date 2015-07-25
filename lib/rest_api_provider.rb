@@ -99,7 +99,7 @@ module RestApiProvider
     end
   end
 
-  class JsonMapper
+  class Mapper
     def self.map2object(response, klass, data_path_elements=[])
       if response && response.body && response.body.any?
         source = response.body
@@ -269,14 +269,14 @@ module RestApiProvider
         # map json to the model objects array
         if method_name == :all
           # map & return the array
-          RestApiProvider::JsonMapper.map2array(resp, self)
+          RestApiProvider::Mapper.map2array(resp, self)
           # map json to the hash where model objects grouped by hash keys
         elsif method_name == :grouped
-          RestApiProvider::JsonMapper.map2hash(resp, self)
+          RestApiProvider::Mapper.map2hash(resp, self)
           # map json to the model object
         else
           # map & return the model object
-          RestApiProvider::JsonMapper.map2object(resp, self)
+          RestApiProvider::Mapper.map2object(resp, self)
         end
       end
     end
@@ -308,11 +308,11 @@ module RestApiProvider
           # map json to a proper object
           case result.name
             when 'Array'
-              RestApiProvider::JsonMapper.map2array(resp, self, data_path_elements)
+              RestApiProvider::Mapper.map2array(resp, self, data_path_elements)
             when 'Hash'
-              RestApiProvider::JsonMapper.map2hash(resp, self, data_path_elements)
+              RestApiProvider::Mapper.map2hash(resp, self, data_path_elements)
             else
-              RestApiProvider::JsonMapper.map2object(resp, self, data_path_elements)
+              RestApiProvider::Mapper.map2object(resp, self, data_path_elements)
           end
         end
       end
