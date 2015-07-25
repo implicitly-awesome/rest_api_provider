@@ -100,59 +100,69 @@ module RestApiProvider
   end
 
   class JsonMapper
-
-    def self.map2object(json, klass, data_path_elements=[])
-      begin
-        source = json.is_a?(String) ? JSON.parse(json) : json
-      rescue
-        return nil
-      end
-      data_path_elements.each { |elem| source = source[elem] if source[elem] }
-      obj = klass.is_a?(Class) ? klass.new : klass
-      if obj && source.any?
-        source.each do |k, v|
-          obj.send("#{k}=", v)
+    def self.map2object(response, klass, data_path_elements=[])
+      if response && response.body && response.body.any?
+        source = response.body
+        data_path_elements.each { |elem| source = source[elem] if source[elem] }
+        obj = klass.is_a?(Class) ? klass.new : klass
+        if obj && source.any?
+          source.each do |k, v|
+            obj.send("#{k}=", v)
+          end
+          return obj
         end
-        return obj
+      else
+        response
       end
-      nil
     end
 
-    def self.map2array(json, klass, data_path_elements=[])
-      result = []
-      begin
-        json = JSON.parse(json) if json.is_a? String
-      rescue
-        result
+    def self.map2array(response, klass, data_path_elements=[])
+      if response && response.body && response.body.any?
+        result = []
+        source = response.body
+        data_path_elements.each { |elem| source = source[elem] if source[elem] }
+        source.each do |object|
+          result << map2object(RestApiProvider::ApiResponse.new(status:response.status,headers:response.headers,body:object), klass)
+        end
+        return result
       end
-      data_path_elements.each { |elem| json = json[elem] if json[elem] }
-      json.each do |json_hash|
-        result << map2object(json_hash, klass)
-      end
-      result
+      response
     end
 
-    def self.map2hash(json, klass, data_path_elements=[])
-      result = {}
-      begin
-        json = JSON.parse(json) if json.is_a? String
-      rescue
-        result
-      end
-      data_path_elements.each { |elem| json = json[elem] if json[elem] }
-      json.each do |group, objects|
-        result[group] = []
-        objects.each do |object|
-          result[group] << map2object(object, klass)
+    def self.map2hash(response, klass, data_path_elements=[])
+      if response && response.body && response.body.any?
+        result = {}
+        source = response.body
+        data_path_elements.each { |elem| source = source[elem] if source[elem] }
+        source.each do |group, objects|
+          result[group] = []
+          objects.each do |object|
+            result[group] << map2object(RestApiProvider::ApiResponse.new(status:response.status,headers:response.headers,body:object), klass)
+          end
         end
+        return result
       end
-      result
+      response
+    end
+  end
+
+  class ApiResponse
+    attr_reader :status, :headers, :body
+
+    def initialize(status:, headers:, body:)
+      @status = status.to_i
+      @headers = headers
+      begin
+        @body = body.is_a?(String) ? JSON.parse(body) : body
+      rescue
+        @body = nil
+      end
     end
   end
 
   class Requester
 
-    def self.make_request_with(http_verb: HTTP_VERBS.first, path: '', content_type:'', params: {}, body: {}, headers: {})
+    def self.make_request_with(http_verb: HTTP_VERBS.first, path: '', content_type: '', params: {}, body: {}, headers: {})
       conn = set_connection
       request = nil
       begin
@@ -169,7 +179,7 @@ module RestApiProvider
         raise RestApiProvider::ApiError.new(500, request), e.message
       end
       if (100...400).to_a.include?(resp.status)
-        resp.body
+        RestApiProvider::ApiResponse.new(status:resp.status, headers:resp.headers, body:resp.body)
       else
         raise RestApiProvider::ApiError.new(resp.status, request), resp.body
       end
@@ -274,7 +284,7 @@ module RestApiProvider
     # .get, .post, .put, .delete methods
     RestApiProvider::HTTP_VERBS.each do |verb|
       # define class singleton methods which will define concrete class singleton methods
-      define_singleton_method(verb) do |method_name, custom_path=nil, result:self, data_path:''|
+      define_singleton_method(verb) do |method_name, custom_path=nil, result: self, data_path: ''|
         # get a name of future method
         method_name = method_name.underscore.to_sym if method_name.is_a? String
         # define class singleton method with name constructed earlier
@@ -294,7 +304,7 @@ module RestApiProvider
           # make a request, get a json
           resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, content_type: content, params: params, body: body, headers: headers
           # get an array of elements of path to data source element
-          data_path_elements = data_path.split('/').select{|x| !x.strip.empty?}
+          data_path_elements = data_path.split('/').select { |x| !x.strip.empty? }
           # map json to a proper object
           case result.name
             when 'Array'

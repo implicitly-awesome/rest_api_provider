@@ -101,7 +101,8 @@ describe RestApiProvider do
         end
 
         it 'supports result class definition' do
-          allow(RestApiProvider::Requester).to receive(:make_request_with).and_return({g1:[{a:1,b:2,c:3},{a:4,b:5,c:6}],g2:[{a:7,b:8,c:9}]}.to_json)
+          response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {g1: [{a: 1, b: 2, c: 3}, {a: 4, b: 5, c: 6}], g2: [{a: 7, b: 8, c: 9}]}.to_json)
+          allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
           expect(TestResource.custom_result['g1'][0].a).to eq(1)
           expect(TestResource.custom_result['g1'][0].b).to eq('2')
           expect(TestResource.custom_result['g1'][0].c).to eq(3)
@@ -114,7 +115,8 @@ describe RestApiProvider do
         end
 
         it 'supports data path' do
-          allow(RestApiProvider::Requester).to receive(:make_request_with).and_return({a:{c:{d:{a:2,b:3,c:4}}},b:{a:1}}.to_json)
+          response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: {c: {d: {a: 2, b: 3, c: 4}}}, b: {a: 1}}.to_json)
+          allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
           expect(TestResource.custom_data_path.a).to eql(2)
           expect(TestResource.custom_data_path.b).to eql('3')
           expect(TestResource.custom_data_path.c).to eql(4)
@@ -172,14 +174,17 @@ describe RestApiProvider do
     subject(:requester) { RestApiProvider::Requester }
 
     context '.make_request_with' do
-      it 'returns an exception if response status != 200' do
-        stub_request(:any, /tests/).to_return(status: 500, body: '', headers: {})
-        expect { requester.make_request_with path: '/tests' }.to raise_error(RestApiProvider::ApiError)
+      it 'returns a response hash if response status is between 100 and 400 codes' do
+        stub_request(:any, /tests/).to_return(status: 200, headers: {}, body: "{\"message\":\"test\"}")
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: "{\"message\":\"test\"}")
+        expect(requester.make_request_with(path: '/tests').status).to eq(response.status)
+        expect(requester.make_request_with(path: '/tests').headers).to eq(response.headers)
+        expect(requester.make_request_with(path: '/tests').body).to eq(response.body)
       end
 
-      it 'returns a body if response status == 200' do
-        stub_request(:any, /tests/).to_return(status: 200, body: "{\"message\":\"test\"}", headers: {})
-        expect(requester.make_request_with path: '/tests').to eq("{\"message\":\"test\"}")
+      it 'returns an exception if response status is NOT between 100 and 400 codes' do
+        stub_request(:any, /tests/).to_return(status: 500, body: '', headers: {})
+        expect { requester.make_request_with path: '/tests' }.to raise_error(RestApiProvider::ApiError)
       end
     end
 
@@ -313,28 +318,31 @@ describe RestApiProvider do
       field :b, type: String
     end
     let(:model) { TestModel.new }
+    let(:response) { RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: 2, b: 'str'}.to_json) }
 
-    context '.map2object with object' do
+    context '.map2object' do
       it 'creates object with proper fields' do
-        obj = mapper.map2object("{\"a\":\"2\",\"b\":\"str\"}" , TestModel)
+        obj = mapper.map2object(response, TestModel)
         expect(obj.a).to eq(2)
         expect(obj.b).to eq('str')
       end
 
       it 'updates model field with proper type' do
-        mapper.map2object("{\"a\":\"2\",\"b\":\"str\"}" , model)
+        mapper.map2object(response, model)
         expect(model.a).to eq(2)
         expect(model.b).to eq('str')
       end
 
       it 'does not update model field with unexpected type' do
-        mapper.map2object("{\"a\":\"str\",\"b\":\"1\"}", model)
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: 'str', b: 1}.to_json)
+        mapper.map2object(response, model)
         expect(model.a).to eq(1)
         expect(model.b).to eq('1')
       end
 
       it 'does not update model with unexpected field' do
-        mapper.map2object("{\"a\":\"2\",\"b\":\"1\",\"c\":\"str\"}", model)
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: 2, b: 1, c: 'str'}.to_json)
+        mapper.map2object(response, model)
         expect(model.a).to eq(2)
         expect(model.b).to eq('1')
         expect(model.c).to be_nil
@@ -345,8 +353,9 @@ describe RestApiProvider do
           field :a
           field :b, type: String
         end
-        obj = mapper.map2object("{\"a\":[1,\"2\",3,\"4\"],\"b\":2}" , TestModel)
-        expect(obj.a).to eq([1,'2',3,'4'])
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: [1, '2', 3, '4'], b: 2}.to_json)
+        obj = mapper.map2object(response, TestModel)
+        expect(obj.a).to eq([1, '2', 3, '4'])
         expect(obj.b).to eq('2')
       end
 
@@ -355,8 +364,9 @@ describe RestApiProvider do
           field :a, type: Array
           field :b, type: String
         end
-        obj = mapper.map2object("{\"a\":[1,\"2\",3,\"4\"],\"b\":\"str\"}" , TestModel)
-        expect(obj.a).to eq([1,'2',3,'4'])
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: [1, '2', 3, '4'], b: 'str'}.to_json)
+        obj = mapper.map2object(response, TestModel)
+        expect(obj.a).to eq([1, '2', 3, '4'])
         expect(obj.b).to eq('str')
       end
 
@@ -364,47 +374,110 @@ describe RestApiProvider do
         class TestModel < RestApiProvider::Resource
           field :a
         end
-        obj = mapper.map2object("{\"a\":{\"aa\":\"2\",\"bb\":\"4\"}}" , TestModel)
-        expect(obj.a).to eq({'aa'=>'2','bb'=>'4'})
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: {aa: 2, bb: 4}}.to_json)
+        obj = mapper.map2object(response, TestModel)
+        expect(obj.a).to eq({'aa' => 2, 'bb' => 4})
       end
 
       it 'maps Hash type explicitly' do
         class TestModel < RestApiProvider::Resource
           field :a, type: Hash
         end
-        obj = mapper.map2object("{\"a\":{\"aa\":\"2\",\"bb\":\"4\"}}" , TestModel)
-        expect(obj.a).to eq({'aa'=>'2','bb'=>'4'})
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: {aa: 2, bb: 4}}.to_json)
+        obj = mapper.map2object(response, TestModel)
+        expect(obj.a).to eq({'aa' => 2, 'bb' => 4})
       end
 
-      it '.map2object works by path' do
+      it 'works by explicit element path' do
         class TestModel < RestApiProvider::Resource
           field :a
         end
-        path_elements = ['a','aa','d']
-        obj = mapper.map2object({a:{aa:{c:1,d:{a:2}},bb:0}}.to_json, TestModel, path_elements)
+        path_elements = %w(a aa d)
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: {aa: {c: 1, d: {a: 2}}, bb: 0}}.to_json)
+        obj = mapper.map2object(response, TestModel, path_elements)
         expect(obj.a).to eq(2)
       end
 
-      it '.map2array works by path' do
+      it 'provides ApiResponse object if response body is blank' do
+        response = RestApiProvider::ApiResponse.new(status: 201, headers: {'some_header'=>'header value'}, body: '')
+        result = mapper.map2object(response, TestModel)
+        expect(result).not_to be_nil
+        expect(result.status).to eq(201)
+        expect(result.headers['some_header']).to eq('header value')
+      end
+
+    end
+
+    context '.map2array' do
+      it 'calls .map2object' do
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: [{a: 2, b: 'str'}, {a: 3, b: 's'}].to_json)
+        expect(mapper).to receive(:map2object).exactly(2).times
+        mapper.map2array(response, TestModel)
+      end
+
+      it 'creates an array of objects' do
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: [{a: 2, b: 'str'}, {a: 3, b: 's'}].to_json)
+        result = mapper.map2array(response, TestModel)
+        expect(result).to be_an_instance_of Array
+        expect(result.length).to eq(2)
+      end
+
+      it 'works by explicit element path' do
         class TestModel < RestApiProvider::Resource
           field :a
         end
-        path_elements = ['a','aa','d']
-        arr = mapper.map2array({a:{aa:{c:1,d:[{a:2},{a:3}]},bb:0}}.to_json, TestModel, path_elements)
+        path_elements = %w(a aa d)
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: {aa: {c: 1, d: [{a: 2}, {a: 3}]}, bb: 0}}.to_json)
+        arr = mapper.map2array(response, TestModel, path_elements)
         expect(arr[0].a).to eq(2)
         expect(arr[1].a).to eq(3)
       end
 
-      it '.map2hash works by path' do
+      it 'provides ApiResponse object if response body is blank' do
+        response = RestApiProvider::ApiResponse.new(status: 201, headers: {'some_header'=>'header value'}, body: '')
+        result = mapper.map2array(response, TestModel)
+        expect(result).not_to be_nil
+        expect(result.status).to eq(201)
+        expect(result.headers['some_header']).to eq('header value')
+      end
+    end
+
+    context '.map2hash' do
+      it 'calls .map2object' do
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {group: [{a: 2, b: 'str'}, {a: 3, b: 's'}]}.to_json)
+        expect(mapper).to receive(:map2object).at_least(:once)
+        mapper.map2hash(response, TestModel)
+      end
+
+      it 'creates a group of objects' do
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {group: [{a: 2, b: 'str'}, {a: 3, b: 's'}]}.to_json)
+        result = mapper.map2hash(response, TestModel)
+        expect(result).to be_an_instance_of Hash
+        expect(result.keys.first).to eq('group')
+        expect(result['group']).to be_an_instance_of Array
+        expect(result['group'].first).to be_an_instance_of TestModel
+        expect(result['group'].first.a).to eq(2)
+      end
+
+      it 'works by explicit element path' do
         class TestModel < RestApiProvider::Resource
           field :a
         end
-        path_elements = ['a','aa','d']
-        obj = mapper.map2hash({a:{aa:{c:1,d:{g1:[{a:2},{a:3}],g2:[{a:4},{a:5}]}},bb:0}}.to_json, TestModel, path_elements)
+        path_elements = %w(a aa d)
+        response = RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {a: {aa: {c: 1, d: {g1: [{a: 2}, {a: 3}], g2: [{a: 4}, {a: 5}]}}, bb: 0}}.to_json)
+        obj = mapper.map2hash(response, TestModel, path_elements)
         expect(obj['g1'][0].a).to eq(2)
         expect(obj['g1'][1].a).to eq(3)
         expect(obj['g2'][0].a).to eq(4)
         expect(obj['g2'][1].a).to eq(5)
+      end
+
+      it 'provides ApiResponse object if response body is blank' do
+        response = RestApiProvider::ApiResponse.new(status: 201, headers: {'some_header'=>'header value'}, body: '')
+        result = mapper.map2hash(response, TestModel)
+        expect(result).not_to be_nil
+        expect(result.status).to eq(201)
+        expect(result.headers['some_header']).to eq('header value')
       end
     end
   end
