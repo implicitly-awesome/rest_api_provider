@@ -347,25 +347,25 @@ module RestApiProvider
                 @attributes[key] = args[0].to_s
               when 'Integer', 'Fixnum', 'Bignum'
                 begin
-                  @attributes[key] = Integer(args[0])
+                  @attributes[key] = args[0].is_a?(String) ? Integer(args[0]) : args[0]
                 rescue
                   # do nothing
                 end
               when 'Float'
                 begin
-                  @attributes[key] = Float(args[0])
+                  @attributes[key] = args[0].is_a?(Float) ? args[0] : Float(args[0])
                 rescue
                   # do nothing
                 end
               when 'Date'
                 begin
-                  @attributes[key] = Date.parse(args[0])
+                  @attributes[key] = args[0].is_a?(Date) ? args[0] : Date(args[0])
                 rescue
                   # do nothing
                 end
               when 'Time'
                 begin
-                  @attributes[key] = Time.parse(args[0])
+                  @attributes[key] = args[0].is_a?(Time) ? args[0] : Time(args[0])
                 rescue
                   # do nothing
                 end
