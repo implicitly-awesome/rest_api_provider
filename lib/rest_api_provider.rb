@@ -359,13 +359,13 @@ module RestApiProvider
                 end
               when 'Date'
                 begin
-                  @attributes[key] = args[0].is_a?(Date) ? args[0] : Date(args[0])
+                  @attributes[key] = args[0].is_a?(Date) ? args[0] : Date.parse(args[0])
                 rescue
                   # do nothing
                 end
               when 'Time'
                 begin
-                  @attributes[key] = args[0].is_a?(Time) ? args[0] : Time(args[0])
+                  @attributes[key] = args[0].is_a?(Time) ? args[0] : Time.parse(args[0])
                 rescue
                   # do nothing
                 end
