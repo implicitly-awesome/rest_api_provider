@@ -165,8 +165,9 @@ module RestApiProvider
     def self.make_request_with(http_verb: HTTP_VERBS.first, path: '', content_type: '', params: {}, body: {}, headers: {})
       conn = set_connection
       request = nil
+      response = nil
       begin
-        resp = conn.send(http_verb) do |req|
+        r = conn.send(http_verb) do |req|
           req.url path
           req.headers = headers if headers.any?
           req.headers['Authorization'] = RestApiProvider.configuration.auth_token unless RestApiProvider.configuration.auth_token.nil?
@@ -175,13 +176,14 @@ module RestApiProvider
           req.body = body.to_json if body.any?
           request = req
         end
+        response = RestApiProvider::ApiResponse.new(status:r.status, headers:r.headers, body:r.body)
       rescue StandardError => e
-        raise RestApiProvider::ApiError.new(500, request), e.message
+        raise RestApiProvider::ApiError.new(request, response), response.body
       end
-      if (100...400).to_a.include?(resp.status)
-        RestApiProvider::ApiResponse.new(status:resp.status, headers:resp.headers, body:resp.body)
+      if (100...400).to_a.include?(r.status)
+        response
       else
-        raise RestApiProvider::ApiError.new(resp.status, request), resp.body
+        raise RestApiProvider::ApiError.new(request, response), response.body
       end
     end
 
@@ -198,11 +200,11 @@ module RestApiProvider
   end
 
   class ApiError < StandardError
-    attr_reader :status, :request
+    attr_reader :request, :response
 
-    def initialize(status, request)
-      @status = status
+    def initialize(request, response)
       @request = request
+      @response = response
     end
   end
 
