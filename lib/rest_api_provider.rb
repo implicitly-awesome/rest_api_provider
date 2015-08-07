@@ -162,8 +162,8 @@ module RestApiProvider
 
   class Requester
 
-    def self.make_request_with(http_verb: HTTP_VERBS.first, path: '', content_type: '', params: {}, body: {}, headers: {})
-      conn = set_connection
+    def self.make_request_with(http_verb: HTTP_VERBS.first, url:nil, path: '', verify_ssl:nil, content_type: '', params: {}, body: {}, headers: {})
+      conn = set_connection(url:url, verify_ssl:verify_ssl)
       request = nil
       response = nil
       begin
@@ -189,9 +189,9 @@ module RestApiProvider
 
     private
 
-    def self.set_connection
+    def self.set_connection(url:RestApiProvider.configuration.api_root, verify_ssl:false)
       # todo: deal with SSL
-      Faraday.new(url: RestApiProvider.configuration.api_root, :ssl => {:verify => false}) do |faraday|
+      Faraday.new(url: url, :ssl => {:verify => verify_ssl}) do |faraday|
         # todo: deal with async
         faraday.adapter Faraday.default_adapter
         # faraday.response :json
@@ -224,6 +224,10 @@ module RestApiProvider
         @content = content unless content.to_s.strip.empty?
       end
 
+      def fields
+        @_fields ||= {}
+      end
+
       def field(name, type: nil, default: nil)
         if type && !RestApiProvider::DATA_TYPES.include?(type)
           raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}"
@@ -232,13 +236,44 @@ module RestApiProvider
         fields[name] = {type: type, default: default}
       end
 
-      def fields
-        @_fields ||= {}
+      def relations
+        @_relations ||= {}
       end
+
+      def has_one(resource_name, rel:nil)
+        if [String, Symbol].include? resource_name.class
+          relation_name = resource_name.to_s.classify
+        else
+          raise ArgumentError.new 'Resource name should be either String or Symbol.'
+        end
+        rel ||= relation_name
+        relations[relation_name] = {type: :one2one, rel: rel}
+      end
+
+      alias_method :belongs_to, :has_one
+
+      def has_many(resource_name, rel:nil)
+        if [String, Symbol].include? resource_name.class
+          relation_name = resource_name.to_s.classify
+        else
+          raise ArgumentError.new 'Resource name should be either String or Symbol.'
+        end
+        rel ||= relation_name
+        relations[relation_name] = {type: :one2many, rel: rel}
+      end
+
+      private
+        def clear_fields
+          @_fields = nil
+        end
+
+        def clear_relations
+          @_relations = nil
+        end
     end
 
     def self.path
-      @path || "/#{self.name.to_s.underscore.pluralize.downcase}/:slug"
+      @path || "/#{self.name.underscore.pluralize.downcase}/:slug"
     end
 
     def self.content
@@ -349,7 +384,7 @@ module RestApiProvider
                 @attributes[key] = args[0].to_s
               when 'Integer', 'Fixnum', 'Bignum'
                 begin
-                  @attributes[key] = args[0].is_a?(String) ? Integer(args[0]) : args[0]
+                  @attributes[key] = args[0].is_a?(Integer) ? args[0] : Integer(args[0])
                 rescue
                   # do nothing
                 end
@@ -395,7 +430,30 @@ module RestApiProvider
         # get a method name
         key = key.underscore.to_sym
         # if attribute exists (and a proper field was defined in the model's class) - just return it
-        @attributes[key] if self.class.fields.key?(key)
+        if self.class.fields.key?(key)
+          @attributes[key]
+        else
+          # maybe it's a relationship? if so - should request for
+          key = key.to_s.classify
+          if self.class.relations.key?(key)
+            relation = self.class.relations[key]
+            # try to find links attribute in the resource
+            href = if @attributes[:_links]
+                     @attributes[:_links][relation[:rel]]['href'] if @attributes[:_links][relation[:rel]]
+                   else
+                     @attributes[:links][relation[:rel]]['href'] if @attributes[:links][relation[:rel]]
+                   end
+            if href
+              resp = RestApiProvider::Requester.make_request_with http_verb: 'get', url: href, verify_ssl: (href.split(':').first == 'https')
+              # map json to a proper object
+              if relation[:type] == :one2many
+                RestApiProvider::Mapper.map2array(resp, key.constantize)
+              else
+                RestApiProvider::Mapper.map2object(resp, key.constantize)
+              end
+            end
+          end
+        end
       end
     end
   end

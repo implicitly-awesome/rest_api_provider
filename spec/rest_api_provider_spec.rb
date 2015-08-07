@@ -34,6 +34,156 @@ describe RestApiProvider do
       get :custom_data_path, data_path: '/a/c/d'
     end
 
+    class HavingOneResource < RestApiProvider::Resource
+      field :_links
+
+      has_one :test_resource, rel: 'test:resource'
+    end
+
+    class HavingManyResource < RestApiProvider::Resource
+      field :_links
+
+      has_many :test_resources, rel: 'test:resources'
+    end
+
+    class BelongingResource < RestApiProvider::Resource
+      field :_links
+
+      belongs_to :test_resource, rel: 'test:resource'
+    end
+
+    describe 'relations' do
+      it 'has .belongs_to' do
+        expect(TestResource.respond_to?(:belongs_to)).to be_truthy
+      end
+
+      it 'has .has_one' do
+        expect(TestResource.respond_to?(:has_one)).to be_truthy
+      end
+
+      it 'has .has_many' do
+        expect(TestResource.respond_to?(:has_many)).to be_truthy
+      end
+
+      describe 'relations storing' do
+        subject {BelongingResource.relations}
+
+        it 'stores relations as hashes' do
+          is_expected.to_not be_nil
+          is_expected.to be_a Hash
+        end
+
+        it 'stores relation name as hash key' do
+          is_expected.to have_key('TestResource')
+        end
+
+        it 'stores relation details as a hash with keys :type & :rel' do
+          expect(subject['TestResource']).to be_a Hash
+          expect(subject['TestResource']).to have_key(:type)
+          expect(subject['TestResource']).to have_key(:rel)
+        end
+      end
+
+      describe '.has_one' do
+        subject {HavingOneResource.relations}
+
+        it 'assigns relation name as a singular form of related resource class name' do
+          expect(subject.keys.first).to eq('TestResource')
+        end
+
+        it 'stores type as :one2one' do
+          expect(subject['TestResource'][:type]).to eq(:one2one)
+        end
+
+        it 'stores proper :rel' do
+          expect(subject['TestResource'][:rel]).to eq('test:resource')
+        end
+      end
+
+      describe '.has_many' do
+        subject {HavingManyResource.relations}
+
+        it 'assigns relation name as a singular form of related resource class name' do
+          expect(subject.keys.first).to eq('TestResource')
+        end
+
+        it 'stores type as :one2many' do
+          expect(subject['TestResource'][:type]).to eq(:one2many)
+        end
+
+        it 'stores proper :rel' do
+          expect(subject['TestResource'][:rel]).to eq('test:resources')
+        end
+      end
+
+      describe '.belongs_to' do
+        subject {BelongingResource.relations}
+        let(:relation){subject['TestResource']}
+
+        it 'assigns relation name as singular form of related resource class name' do
+          expect(subject.keys.first).to eq('TestResource')
+        end
+
+        it 'stores type as :one2one' do
+          expect(subject['TestResource'][:type]).to eq(:one2one)
+        end
+
+        it 'stores proper :rel' do
+          expect(relation[:rel]).to eq('test:resource')
+        end
+      end
+
+      describe 'querying' do
+        let(:test_resource) do
+          TestResource.new.tap do |t|
+            t.a = 2
+            t.b = '3'
+            t.c = ['4']
+          end
+        end
+        let(:response){RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: test_resource.attributes.to_json)}
+
+        describe 'with .belongs_to relation' do
+          let(:belonger){BelongingResource.new.tap {|t| t._links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
+
+          it 'returns related object' do
+            allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
+            expect(belonger.test_resource).not_to be_nil
+            expect(belonger.test_resource.a).to eq 2
+            expect(belonger.test_resource.b).to eq '3'
+            expect(belonger.test_resource.c).to eq ['4']
+          end
+        end
+
+        describe 'with .has_one relation' do
+          let(:haver){HavingOneResource.new.tap {|t| t._links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
+
+          it 'returns related object' do
+            allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
+            expect(haver.test_resource).not_to be_nil
+            expect(haver.test_resource.a).to eq 2
+            expect(haver.test_resource.b).to eq '3'
+            expect(haver.test_resource.c).to eq ['4']
+          end
+        end
+
+        describe 'with .has_many relation' do
+          let(:response){RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: [test_resource.attributes, test_resource.attributes].to_json)}
+          let(:haver){HavingManyResource.new.tap {|t| t._links = {'test:resources' =>{'href' => 'https://test.com/test_resources'}}}}
+
+          it 'returns related object' do
+            allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
+            expect(haver.test_resources).not_to be_nil
+            expect(haver.test_resources).is_a? Array
+            expect(haver.test_resources.length).to eq 2
+            expect(haver.test_resources.first.a).to eq 2
+            expect(haver.test_resources.first.b).to eq '3'
+            expect(haver.test_resources.first.c).to eq ['4']
+          end
+        end
+      end
+    end
+
     describe 'resource path' do
       it 'has .resource_path' do
         expect(TestResource.respond_to?(:resource_path)).to be_truthy
@@ -45,7 +195,7 @@ describe RestApiProvider do
 
       it 'assigns path value' do
         class TestResource < RestApiProvider::Resource
-          resource_path '/t/:slug';
+          resource_path '/t/:slug'
         end
         expect(TestResource.path).to eq('/t/:slug')
       end
