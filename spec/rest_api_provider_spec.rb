@@ -76,6 +76,16 @@ describe RestApiProvider do
           expect(subject['TestResource']).to have_key(:type)
           expect(subject['TestResource']).to have_key(:rel)
         end
+
+        it 'defines a default rel as provided resource name' do
+          class SomeResource < RestApiProvider::Resource
+            belongs_to :test_resource
+          end
+
+          expect(SomeResource.relations).not_to be_nil
+          expect(SomeResource.relations['TestResource']).to have_key(:rel)
+          expect(SomeResource.relations['TestResource'][:rel]).to eq(:test_resource)
+        end
       end
 
       describe '.has_one' do

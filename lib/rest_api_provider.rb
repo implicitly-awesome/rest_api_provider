@@ -246,11 +246,11 @@ module RestApiProvider
       def has_one(resource_name, rel:nil)
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s.classify
+          rel ||= resource_name.is_a?(Symbol) ? resource_name : resource_name.to_sym
+          relations[relation_name] = {type: :one2one, rel: rel}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
-        rel ||= relation_name
-        relations[relation_name] = {type: :one2one, rel: rel}
       end
 
       alias_method :belongs_to, :has_one
@@ -258,11 +258,11 @@ module RestApiProvider
       def has_many(resource_name, rel:nil)
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s.classify
+          rel ||= resource_name.is_a?(Symbol) ? resource_name : resource_name.to_sym
+          relations[relation_name] = {type: :one2many, rel: rel}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
-        rel ||= relation_name
-        relations[relation_name] = {type: :one2many, rel: rel}
       end
 
       def define_default_fields

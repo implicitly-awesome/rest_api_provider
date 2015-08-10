@@ -95,6 +95,44 @@ class TestResource < RestApiProvider::Resource
 end
 ```
 
+### Relations
+You can define relations between Resources. Relations implementation based on the [HATEOAS](https://en.wikipedia.org/wiki/HATEOAS) principle.
+Supported relations:
+* belongs_to
+* has_one
+* has_many
+
+Before using relations you might configure HATEOAS attributes in config (if it is differ from default 'links'):
+``` ruby
+RestApiProvider.configure do |config|
+  config.api_root = 'https://api.test.com:9999'
+  config.verify_ssl = false
+  config.auth_token = "Basic #{Rails.application.secrets.basic_auth_token}"
+  config.hateoas_links = 'refs'
+end
+```
+
+You can define a relation in Rails-like way:
+``` ruby
+class Book < RestApiProvider::Resource
+  belongs_to :author, rel: 'lib:author'
+end
+
+class Author < RestApiProvider::Resource
+  has_many :books, rel: 'lib:books'
+end
+```
+
+by default, rel is equal to relation name
+``` ruby
+class Book < RestApiProvider::Resource
+  belongs_to :author
+end
+
+Book.relations
+>> {:type=>:one2one, :rel=>:author}
+```
+
 ## Requests
 ### Default methods
 There are some pre-defined request methods (name=>http_verb):
