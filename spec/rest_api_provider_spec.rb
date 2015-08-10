@@ -35,20 +35,14 @@ describe RestApiProvider do
     end
 
     class HavingOneResource < RestApiProvider::Resource
-      field :_links
-
       has_one :test_resource, rel: 'test:resource'
     end
 
     class HavingManyResource < RestApiProvider::Resource
-      field :_links
-
       has_many :test_resources, rel: 'test:resources'
     end
 
     class BelongingResource < RestApiProvider::Resource
-      field :_links
-
       belongs_to :test_resource, rel: 'test:resource'
     end
 
@@ -144,7 +138,7 @@ describe RestApiProvider do
         let(:response){RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: test_resource.attributes.to_json)}
 
         describe 'with .belongs_to relation' do
-          let(:belonger){BelongingResource.new.tap {|t| t._links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
+          let(:belonger){BelongingResource.new.tap {|t| t.links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
 
           it 'returns related object' do
             allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
@@ -156,7 +150,7 @@ describe RestApiProvider do
         end
 
         describe 'with .has_one relation' do
-          let(:haver){HavingOneResource.new.tap {|t| t._links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
+          let(:haver){HavingOneResource.new.tap {|t| t.links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
 
           it 'returns related object' do
             allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
@@ -169,7 +163,7 @@ describe RestApiProvider do
 
         describe 'with .has_many relation' do
           let(:response){RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: [test_resource.attributes, test_resource.attributes].to_json)}
-          let(:haver){HavingManyResource.new.tap {|t| t._links = {'test:resources' =>{'href' => 'https://test.com/test_resources'}}}}
+          let(:haver){HavingManyResource.new.tap {|t| t.links = {'test:resources' =>{'href' => 'https://test.com/test_resources'}}}}
 
           it 'returns related object' do
             allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)

@@ -29,11 +29,14 @@ module RestApiProvider
   end
 
   class Configuration
-    attr_accessor :api_root, :auth_token
+    attr_accessor :api_root, :verify_ssl, :auth_token, :hateoas_links, :hateoas_href
 
     def initialize
       @api_root = 'http://'
+      @verify_ssl = false
       @auth_token = nil
+      @hateoas_links = :links
+      @hateoas_href = 'href'
     end
   end
 
@@ -162,8 +165,8 @@ module RestApiProvider
 
   class Requester
 
-    def self.make_request_with(http_verb: HTTP_VERBS.first, url:nil, path: '', verify_ssl:nil, content_type: '', params: {}, body: {}, headers: {})
-      conn = set_connection(url:url, verify_ssl:verify_ssl)
+    def self.make_request_with(http_verb: HTTP_VERBS.first, url:RestApiProvider.configuration.api_root, verify_ssl:RestApiProvider.configuration.verify_ssl, path: '', content_type: '', params: {}, body: {}, headers: {})
+      conn = set_connection(url, verify_ssl)
       request = nil
       response = nil
       begin
@@ -178,18 +181,18 @@ module RestApiProvider
         end
         response = RestApiProvider::ApiResponse.new(status:r.status, headers:r.headers, body:r.body)
       rescue StandardError => e
-        raise RestApiProvider::ApiError.new(request, response), response.body
+        raise RestApiProvider::ApiError.new(request, r), (r.body if r)
       end
       if (100...400).to_a.include?(r.status)
         response
       else
-        raise RestApiProvider::ApiError.new(request, response), response.body
+        raise RestApiProvider::ApiError.new(request, response), (response.body if response)
       end
     end
 
     private
 
-    def self.set_connection(url:RestApiProvider.configuration.api_root, verify_ssl:false)
+    def self.set_connection(url, verify_ssl)
       # todo: deal with SSL
       Faraday.new(url: url, :ssl => {:verify => verify_ssl}) do |faraday|
         # todo: deal with async
@@ -262,14 +265,13 @@ module RestApiProvider
         relations[relation_name] = {type: :one2many, rel: rel}
       end
 
-      private
-        def clear_fields
-          @_fields = nil
-        end
+      def define_default_fields
+        # define 'links' field based on configuration name
+        hateoas_links = RestApiProvider.configuration.hateoas_links
+        name = hateoas_links.is_a?(String) ? hateoas_links.underscore.to_sym : hateoas_links
+        fields[name] = {type: nil, default: nil}
+      end
 
-        def clear_relations
-          @_relations = nil
-        end
     end
 
     def self.path
@@ -283,6 +285,8 @@ module RestApiProvider
     # inject class instance variables & methods into Entity subclass
     def self.inherited(subclass)
       subclass.extend(ClassMethods)
+      # define a default fields
+      subclass.define_default_fields
     end
 
     # predefined api methods: .all, .grouped, .find, .create, .update, .destroy
@@ -302,7 +306,6 @@ module RestApiProvider
         end
         # make a request, get a json
         resp = RestApiProvider::Requester.make_request_with http_verb: verb, path: request_path, content_type: content, params: params, body: body, headers: headers
-        request_path = nil
         # map json to the model objects array
         if method_name == :all
           # map & return the array
@@ -438,14 +441,16 @@ module RestApiProvider
           if self.class.relations.key?(key)
             relation = self.class.relations[key]
             # try to find links attribute in the resource
-            href = if @attributes[:_links]
-                     @attributes[:_links][relation[:rel]]['href'] if @attributes[:_links][relation[:rel]]
-                   else
-                     @attributes[:links][relation[:rel]]['href'] if @attributes[:links][relation[:rel]]
+            hateoas_links = RestApiProvider.configuration.hateoas_links
+            hateoas_href = RestApiProvider.configuration.hateoas_href
+            href = if @attributes[hateoas_links]
+                     @attributes[hateoas_links][relation[:rel]][hateoas_href] if @attributes[hateoas_links][relation[:rel]]
                    end
             if href
-              resp = RestApiProvider::Requester.make_request_with http_verb: 'get', url: href, verify_ssl: (href.split(':').first == 'https')
-              # map json to a proper object
+              # make a GET request with exact url (which should point to related resource/s)
+              resp = RestApiProvider::Requester.make_request_with http_verb: RestApiProvider::HTTP_VERBS.first, url: href
+              # if relation is one-to-many - we should map the response to Array of related resource's class
+              # which in relations storage presented as class.name string
               if relation[:type] == :one2many
                 RestApiProvider::Mapper.map2array(resp, key.constantize)
               else
