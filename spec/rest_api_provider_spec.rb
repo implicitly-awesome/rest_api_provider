@@ -84,7 +84,7 @@ describe RestApiProvider do
 
           expect(SomeResource.relations).not_to be_nil
           expect(SomeResource.relations['TestResource']).to have_key(:rel)
-          expect(SomeResource.relations['TestResource'][:rel]).to eq(:test_resource)
+          expect(SomeResource.relations['TestResource'][:rel]).to eq('test_resource')
         end
       end
 

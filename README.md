@@ -130,7 +130,7 @@ class Book < RestApiProvider::Resource
 end
 
 Book.relations
->> {:type=>:one2one, :rel=>:author}
+>> {:type=>:one2one, :rel=>"author"}
 ```
 
 ## Requests

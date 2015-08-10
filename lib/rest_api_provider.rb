@@ -246,7 +246,7 @@ module RestApiProvider
       def has_one(resource_name, rel:nil)
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s.classify
-          rel ||= resource_name.is_a?(Symbol) ? resource_name : resource_name.to_sym
+          rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
           relations[relation_name] = {type: :one2one, rel: rel}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
@@ -258,7 +258,7 @@ module RestApiProvider
       def has_many(resource_name, rel:nil)
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s.classify
-          rel ||= resource_name.is_a?(Symbol) ? resource_name : resource_name.to_sym
+          rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
           relations[relation_name] = {type: :one2many, rel: rel}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
@@ -443,8 +443,9 @@ module RestApiProvider
             # try to find links attribute in the resource
             hateoas_links = RestApiProvider.configuration.hateoas_links.is_a?(String) ? RestApiProvider.configuration.hateoas_links.underscore.to_sym : RestApiProvider.configuration.hateoas_links
             hateoas_href = RestApiProvider.configuration.hateoas_href.is_a?(Symbol) ? RestApiProvider.configuration.hateoas_href.to_s : RestApiProvider.configuration.hateoas_href
+            rel = relation[:rel]
             href = if @attributes[hateoas_links]
-                     @attributes[hateoas_links][relation[:rel]][hateoas_href] if @attributes[hateoas_links][relation[:rel]]
+                     @attributes[hateoas_links][rel][hateoas_href] if @attributes[hateoas_links][rel]
                    end
             if href
               # make a GET request with exact url (which should point to related resource/s)
