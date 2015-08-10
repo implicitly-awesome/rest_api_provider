@@ -441,8 +441,8 @@ module RestApiProvider
           if self.class.relations.key?(key)
             relation = self.class.relations[key]
             # try to find links attribute in the resource
-            hateoas_links = RestApiProvider.configuration.hateoas_links
-            hateoas_href = RestApiProvider.configuration.hateoas_href
+            hateoas_links = RestApiProvider.configuration.hateoas_links.is_a?(String) ? RestApiProvider.configuration.hateoas_links.underscore.to_sym : RestApiProvider.configuration.hateoas_links
+            hateoas_href = RestApiProvider.configuration.hateoas_href.is_a?(Symbol) ? RestApiProvider.configuration.hateoas_href.to_s : RestApiProvider.configuration.hateoas_href
             href = if @attributes[hateoas_links]
                      @attributes[hateoas_links][relation[:rel]][hateoas_href] if @attributes[hateoas_links][relation[:rel]]
                    end
