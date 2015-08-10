@@ -221,3 +221,7 @@ So far you can get a mapping JSON to:
 * Hash
 
 _If a response body is blank, then ::Mapper provides ::ApiResponse class object._
+
+### TODO
+* async requests
+* cache
