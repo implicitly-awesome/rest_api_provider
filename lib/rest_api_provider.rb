@@ -330,7 +330,7 @@ module RestApiProvider
         # define class singleton method with name constructed earlier
         define_singleton_method(method_name) do |slugs: {}, params: {}, body: {}, headers: {}|
           # if path defined - override common path
-          request_path = custom_path.clone || path.clone
+          request_path = custom_path ? custom_path.clone : path.clone
           # fill the path with given slugs
           # if slugs were given - replace :slug masks with proper values
           if slugs.any?
