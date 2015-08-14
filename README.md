@@ -42,7 +42,7 @@ class TestResource < RestApiProvider::Resource
   resource_path '/test_resources/:slug'
 
   field :slug
-  field :title, String, default: 'Hello World!'
+  field :title, type: String, default: 'Hello World!'
   field :description
 end
 ```
