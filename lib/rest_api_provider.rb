@@ -243,11 +243,11 @@ module RestApiProvider
         @_relations ||= {}
       end
 
-      def has_one(resource_name, rel:nil)
+      def has_one(resource_name, rel:nil, data_path:'')
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s.classify
           rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
-          relations[relation_name] = {type: :one2one, rel: rel}
+          relations[relation_name] = {type: :one2one, rel: rel, data_path: data_path}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
@@ -255,11 +255,11 @@ module RestApiProvider
 
       alias_method :belongs_to, :has_one
 
-      def has_many(resource_name, rel:nil)
+      def has_many(resource_name, rel:nil, data_path:'')
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s.classify
           rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
-          relations[relation_name] = {type: :one2many, rel: rel}
+          relations[relation_name] = {type: :one2many, rel: rel, data_path: data_path}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
@@ -450,12 +450,14 @@ module RestApiProvider
             if href
               # make a GET request with exact url (which should point to related resource/s)
               resp = RestApiProvider::Requester.make_request_with http_verb: RestApiProvider::HTTP_VERBS.first, url: href
+              # get an array of elements of path to data source element
+              data_path_elements = relation[:data_path].split('/').select { |x| !x.strip.empty? }
               # if relation is one-to-many - we should map the response to Array of related resource's class
               # which in relations storage presented as class.name string
               if relation[:type] == :one2many
-                RestApiProvider::Mapper.map2array(resp, key.constantize)
+                RestApiProvider::Mapper.map2array(resp, key.constantize, data_path_elements)
               else
-                RestApiProvider::Mapper.map2object(resp, key.constantize)
+                RestApiProvider::Mapper.map2object(resp, key.constantize, data_path_elements)
               end
             end
           end

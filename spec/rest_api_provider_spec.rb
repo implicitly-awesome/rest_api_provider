@@ -42,6 +42,10 @@ describe RestApiProvider do
       has_many :test_resources, rel: 'test:resources'
     end
 
+    class HavingManyWithDataPathResource < RestApiProvider::Resource
+      has_many :test_resources, rel: 'test:resources', data_path: '/data'
+    end
+
     class BelongingResource < RestApiProvider::Resource
       belongs_to :test_resource, rel: 'test:resource'
     end
@@ -75,6 +79,7 @@ describe RestApiProvider do
           expect(subject['TestResource']).to be_a Hash
           expect(subject['TestResource']).to have_key(:type)
           expect(subject['TestResource']).to have_key(:rel)
+          expect(subject['TestResource']).to have_key(:data_path)
         end
 
         it 'defines a default rel as provided resource name' do
@@ -174,6 +179,21 @@ describe RestApiProvider do
         describe 'with .has_many relation' do
           let(:response){RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: [test_resource.attributes, test_resource.attributes].to_json)}
           let(:haver){HavingManyResource.new.tap {|t| t.links = {'test:resources' =>{'href' => 'https://test.com/test_resources'}}}}
+
+          it 'returns related object' do
+            allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
+            expect(haver.test_resources).not_to be_nil
+            expect(haver.test_resources).is_a? Array
+            expect(haver.test_resources.length).to eq 2
+            expect(haver.test_resources.first.a).to eq 2
+            expect(haver.test_resources.first.b).to eq '3'
+            expect(haver.test_resources.first.c).to eq ['4']
+          end
+        end
+
+        describe 'with data_path specified' do
+          let(:response){RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: {data: [test_resource.attributes, test_resource.attributes]}.to_json)}
+          let(:haver){HavingManyWithDataPathResource.new.tap {|t| t.links = {'test:resources' =>{'href' => 'https://test.com/test_resources'}}}}
 
           it 'returns related object' do
             allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)

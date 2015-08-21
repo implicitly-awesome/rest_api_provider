@@ -133,6 +133,19 @@ Book.relations
 >> {:type=>:one2one, :rel=>"author"}
 ```
 
+Sometimes it worth to specify a source data path (for example: rel href guide you to paged data: ```{data:[obj, obj, obj...], paging:{...}}```
+
+In this case you can define a data path like this:
+``` ruby
+class Book < RestApiProvider::Resource
+  belongs_to :author, rel: 'lib:author'
+end
+
+class Author < RestApiProvider::Resource
+  has_many :books, rel: 'lib:books', data_path: '/data'
+end
+```
+
 ## Requests
 ### Default methods
 There are some pre-defined request methods (name=>http_verb):
