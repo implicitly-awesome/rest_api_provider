@@ -72,14 +72,15 @@ describe RestApiProvider do
         end
 
         it 'stores relation name as hash key' do
-          is_expected.to have_key('TestResource')
+          is_expected.to have_key('test_resource')
         end
 
         it 'stores relation details as a hash with keys :type & :rel' do
-          expect(subject['TestResource']).to be_a Hash
-          expect(subject['TestResource']).to have_key(:type)
-          expect(subject['TestResource']).to have_key(:rel)
-          expect(subject['TestResource']).to have_key(:data_path)
+          expect(subject['test_resource']).to be_a Hash
+          expect(subject['test_resource']).to have_key(:type)
+          expect(subject['test_resource']).to have_key(:rel)
+          expect(subject['test_resource']).to have_key(:data_path)
+          expect(subject['test_resource']).to have_key(:klass)
         end
 
         it 'defines a default rel as provided resource name' do
@@ -88,8 +89,21 @@ describe RestApiProvider do
           end
 
           expect(SomeResource.relations).not_to be_nil
-          expect(SomeResource.relations['TestResource']).to have_key(:rel)
-          expect(SomeResource.relations['TestResource'][:rel]).to eq('test_resource')
+          expect(SomeResource.relations['test_resource']).to have_key(:rel)
+          expect(SomeResource.relations['test_resource'][:rel]).to eq('test_resource')
+        end
+
+        it 'allows to specify related resource type' do
+          class Stats < RestApiProvider::Resource
+          end
+
+          class SomeResource2 < RestApiProvider::Resource
+            belongs_to :qwe, type: Stats
+          end
+
+          expect(SomeResource2.relations).not_to be_nil
+          expect(SomeResource2.relations['qwe']).to have_key(:klass)
+          expect(SomeResource2.relations['qwe'][:klass]).to eq(Stats)
         end
       end
 
@@ -97,15 +111,15 @@ describe RestApiProvider do
         subject {HavingOneResource.relations}
 
         it 'assigns relation name as a singular form of related resource class name' do
-          expect(subject.keys.first).to eq('TestResource')
+          expect(subject.keys.first).to eq('test_resource')
         end
 
         it 'stores type as :one2one' do
-          expect(subject['TestResource'][:type]).to eq(:one2one)
+          expect(subject['test_resource'][:type]).to eq(:one2one)
         end
 
         it 'stores proper :rel' do
-          expect(subject['TestResource'][:rel]).to eq('test:resource')
+          expect(subject['test_resource'][:rel]).to eq('test:resource')
         end
       end
 
@@ -113,28 +127,28 @@ describe RestApiProvider do
         subject {HavingManyResource.relations}
 
         it 'assigns relation name as a singular form of related resource class name' do
-          expect(subject.keys.first).to eq('TestResource')
+          expect(subject.keys.first).to eq('test_resources')
         end
 
         it 'stores type as :one2many' do
-          expect(subject['TestResource'][:type]).to eq(:one2many)
+          expect(subject['test_resources'][:type]).to eq(:one2many)
         end
 
         it 'stores proper :rel' do
-          expect(subject['TestResource'][:rel]).to eq('test:resources')
+          expect(subject['test_resources'][:rel]).to eq('test:resources')
         end
       end
 
       describe '.belongs_to' do
         subject {BelongingResource.relations}
-        let(:relation){subject['TestResource']}
+        let(:relation){subject['test_resource']}
 
         it 'assigns relation name as singular form of related resource class name' do
-          expect(subject.keys.first).to eq('TestResource')
+          expect(subject.keys.first).to eq('test_resource')
         end
 
         it 'stores type as :one2one' do
-          expect(subject['TestResource'][:type]).to eq(:one2one)
+          expect(subject['test_resource'][:type]).to eq(:one2one)
         end
 
         it 'stores proper :rel' do

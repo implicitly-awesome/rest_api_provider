@@ -243,11 +243,11 @@ module RestApiProvider
         @_relations ||= {}
       end
 
-      def has_one(resource_name, rel:nil, data_path:'')
+      def has_one(resource_name, rel:nil, data_path:'', type:nil)
         if [String, Symbol].include? resource_name.class
-          relation_name = resource_name.to_s.classify
+          relation_name = resource_name.to_s
           rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
-          relations[relation_name] = {type: :one2one, rel: rel, data_path: data_path}
+          relations[relation_name] = {type: :one2one, rel: rel, data_path: data_path, klass: (type || relation_name.classify.constantize)}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
@@ -255,11 +255,11 @@ module RestApiProvider
 
       alias_method :belongs_to, :has_one
 
-      def has_many(resource_name, rel:nil, data_path:'')
+      def has_many(resource_name, rel:nil, data_path:'', type:nil)
         if [String, Symbol].include? resource_name.class
-          relation_name = resource_name.to_s.classify
+          relation_name = resource_name.to_s
           rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
-          relations[relation_name] = {type: :one2many, rel: rel, data_path: data_path}
+          relations[relation_name] = {type: :one2many, rel: rel, data_path: data_path, klass: (type || relation_name.classify.constantize)}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
@@ -437,7 +437,7 @@ module RestApiProvider
           @attributes[key]
         else
           # maybe it's a relationship? if so - should request for
-          key = key.to_s.classify
+          key = key.to_s
           if self.class.relations.key?(key)
             relation = self.class.relations[key]
             # try to find links attribute in the resource
@@ -455,9 +455,9 @@ module RestApiProvider
               # if relation is one-to-many - we should map the response to Array of related resource's class
               # which in relations storage presented as class.name string
               if relation[:type] == :one2many
-                RestApiProvider::Mapper.map2array(resp, key.constantize, data_path_elements)
+                RestApiProvider::Mapper.map2array(resp, relation[:klass], data_path_elements)
               else
-                RestApiProvider::Mapper.map2object(resp, key.constantize, data_path_elements)
+                RestApiProvider::Mapper.map2object(resp, relation[:klass], data_path_elements)
               end
             end
           end

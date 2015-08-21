@@ -133,6 +133,17 @@ Book.relations
 >> {:type=>:one2one, :rel=>"author"}
 ```
 
+If you need to use relation name differ from resource class name, you can specify target type:
+``` ruby
+class Book < RestApiProvider::Resource
+  belongs_to :author, rel: 'lib:author'
+end
+
+class Author < RestApiProvider::Resource
+  has_many :writings, rel: 'lib:books', type: Book
+end
+```
+
 Sometimes it worth to specify a source data path (for example: rel href guide you to paged data: ```{data:[obj, obj, obj...], paging:{...}}```
 
 In this case you can define a data path like this:
