@@ -169,7 +169,7 @@ class Author < RestApiProvider::Resource
  has_many :books, rel: 'lib:books', data_path: '/data'
 end
 
-book = new Book
+book = Book.new
 Book.relations_caching_enabled? #true
 book.author(true) #will be requested from API, because cache is empty at the moment
 book.author #will be requested from API, because attribute wasn't provided
