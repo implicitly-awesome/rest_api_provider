@@ -75,12 +75,13 @@ describe RestApiProvider do
           is_expected.to have_key('test_resource')
         end
 
-        it 'stores relation details as a hash with keys :type & :rel' do
+        it 'stores relation details as a hash' do
           expect(subject['test_resource']).to be_a Hash
           expect(subject['test_resource']).to have_key(:type)
           expect(subject['test_resource']).to have_key(:rel)
           expect(subject['test_resource']).to have_key(:data_path)
           expect(subject['test_resource']).to have_key(:klass)
+          expect(subject['test_resource']).to have_key(:cache)
         end
 
         it 'defines a default rel as provided resource name' do
@@ -217,6 +218,94 @@ describe RestApiProvider do
             expect(haver.test_resources.first.a).to eq 2
             expect(haver.test_resources.first.b).to eq '3'
             expect(haver.test_resources.first.c).to eq ['4']
+          end
+        end
+
+        describe 'related resource caching' do
+
+          it 'has .enable_caching method' do
+            expect(HavingOneResource.respond_to?(:enable_relations_caching)).to be_truthy
+          end
+
+          it '.enable_caching method returns true by default' do
+            expect(HavingOneResource.enable_relations_caching).to be_truthy
+          end
+
+          context '.enable_caching == true' do
+            class HavingOneResourceCached < RestApiProvider::Resource
+              enable_relations_caching
+
+              has_one :test_resource, rel: 'test:resource'
+            end
+
+            let(:haver){HavingOneResourceCached.new.tap {|t| t.links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
+
+            it 'returns related object' do
+              allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
+              expect(haver.test_resource).not_to be_nil
+              expect(haver.test_resource.a).to eq 2
+              expect(haver.test_resource.b).to eq '3'
+              expect(haver.test_resource.c).to eq ['4']
+            end
+
+            it 'stores related object in cache' do
+              expect(HavingOneResourceCached.relations['test_resource'][:cache]).not_to be_nil
+              expect(HavingOneResourceCached.relations['test_resource'][:cache]).to be_a TestResource
+              expect(HavingOneResourceCached.relations['test_resource'][:cache].a).to eq 2
+              expect(HavingOneResourceCached.relations['test_resource'][:cache].b).to eq '3'
+              expect(HavingOneResourceCached.relations['test_resource'][:cache].c).to eq ['4']
+            end
+
+            context 'with the next requests' do
+              let(:test_resource) do
+                TestResource.new.tap do |t|
+                  t.a = 12
+                  t.b = '13'
+                  t.c = ['14']
+                end
+              end
+              let(:response){RestApiProvider::ApiResponse.new(status: 200, headers: {}, body: test_resource.attributes.to_json)}
+
+              it 'returns related object from :cache if true as argument was provided' do
+                expect(haver.test_resource(true)).not_to be_nil
+                expect(haver.test_resource(true)).to be_a TestResource
+                expect(haver.test_resource(true).a).to eq 2
+                expect(haver.test_resource(true).b).to eq '3'
+                expect(haver.test_resource(true).c).to eq ['4']
+              end
+
+              it 'requests for related resource & refreshing it in cache by default' do
+                allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
+                expect(haver.test_resource).to be_a TestResource
+                expect(haver.test_resource.a).to eq 12
+                expect(haver.test_resource.b).to eq '13'
+                expect(haver.test_resource.c).to eq ['14']
+                expect(HavingOneResourceCached.relations['test_resource'][:cache]).to be_a TestResource
+                expect(HavingOneResourceCached.relations['test_resource'][:cache].a).to eq 12
+                expect(HavingOneResourceCached.relations['test_resource'][:cache].b).to eq '13'
+                expect(HavingOneResourceCached.relations['test_resource'][:cache].c).to eq ['14']
+              end
+            end
+          end
+
+          context '.enable_caching == false (default)' do
+            class HavingOneResourceNotCached < RestApiProvider::Resource
+              has_one :test_resource, rel: 'test:resource'
+            end
+
+            let(:haver){HavingOneResourceNotCached.new.tap {|t| t.links = {'test:resource' =>{'href' => 'https://test.com/test_resources'}}}}
+
+            it 'returns related object' do
+              allow(RestApiProvider::Requester).to receive(:make_request_with).and_return(response)
+              expect(haver.test_resource).not_to be_nil
+              expect(haver.test_resource.a).to eq 2
+              expect(haver.test_resource.b).to eq '3'
+              expect(haver.test_resource.c).to eq ['4']
+            end
+
+            it 'doesnt store related object as previous result' do
+              expect(HavingOneResourceNotCached.relations['test_resource'][:cache]).to be_nil
+            end
           end
         end
       end

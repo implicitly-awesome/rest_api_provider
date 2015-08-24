@@ -125,7 +125,7 @@ module RestApiProvider
         source = response.body
         data_path_elements.each { |elem| source = source[elem] if source[elem] }
         source.each do |object|
-          result << map2object(RestApiProvider::ApiResponse.new(status:response.status,headers:response.headers,body:object), klass)
+          result << map2object(RestApiProvider::ApiResponse.new(status: response.status, headers: response.headers, body: object), klass)
         end
         return result
       end
@@ -140,7 +140,7 @@ module RestApiProvider
         source.each do |group, objects|
           result[group] = []
           objects.each do |object|
-            result[group] << map2object(RestApiProvider::ApiResponse.new(status:response.status,headers:response.headers,body:object), klass)
+            result[group] << map2object(RestApiProvider::ApiResponse.new(status: response.status, headers: response.headers, body: object), klass)
           end
         end
         return result
@@ -165,7 +165,7 @@ module RestApiProvider
 
   class Requester
 
-    def self.make_request_with(http_verb: HTTP_VERBS.first, url:RestApiProvider.configuration.api_root, verify_ssl:RestApiProvider.configuration.verify_ssl, path: '', content_type: '', params: {}, body: {}, headers: {})
+    def self.make_request_with(http_verb: HTTP_VERBS.first, url: RestApiProvider.configuration.api_root, verify_ssl: RestApiProvider.configuration.verify_ssl, path: '', content_type: '', params: {}, body: {}, headers: {})
       conn = set_connection(url, verify_ssl)
       request = nil
       response = nil
@@ -179,7 +179,7 @@ module RestApiProvider
           req.body = body.to_json if body.any?
           request = req
         end
-        response = RestApiProvider::ApiResponse.new(status:r.status, headers:r.headers, body:r.body)
+        response = RestApiProvider::ApiResponse.new(status: r.status, headers: r.headers, body: r.body)
       rescue StandardError => e
         raise RestApiProvider::ApiError.new(request, r), (r.body if r)
       end
@@ -217,14 +217,20 @@ module RestApiProvider
     # class instance variables + class instance methods .field, .set_path
     module ClassMethods
 
-      # set path
       def resource_path(path)
-        @path = path
+        @_path = path
       end
 
-      # set content type
+      def path
+        @_path || "/#{self.name.underscore.pluralize.downcase}/:slug"
+      end
+
       def content_type(content)
-        @content = content unless content.to_s.strip.empty?
+        @_content = content unless content.to_s.strip.empty?
+      end
+
+      def content
+        @_content || 'application/json'
       end
 
       def fields
@@ -243,11 +249,27 @@ module RestApiProvider
         @_relations ||= {}
       end
 
-      def has_one(resource_name, rel:nil, data_path:'', type:nil)
+      def set_relation_cache(key, value)
+        @_relations[key][:cache] = value
+      end
+
+      def enable_relations_caching
+        @_enable_relations_caching = true
+      end
+
+      def relations_caching_enabled?
+        @_enable_relations_caching.nil? ? false : true
+      end
+
+      def clear_cache
+        @_relations.values.each{|r| r[:cache] = nil}
+      end
+
+      def has_one(resource_name, rel: nil, data_path: '', type: nil)
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s
           rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
-          relations[relation_name] = {type: :one2one, rel: rel, data_path: data_path, klass: (type || relation_name.classify.constantize)}
+          relations[relation_name] = {type: :one2one, rel: rel, data_path: data_path, klass: (type || relation_name.classify.constantize), cache: nil}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
@@ -255,11 +277,11 @@ module RestApiProvider
 
       alias_method :belongs_to, :has_one
 
-      def has_many(resource_name, rel:nil, data_path:'', type:nil)
+      def has_many(resource_name, rel: nil, data_path: '', type: nil)
         if [String, Symbol].include? resource_name.class
           relation_name = resource_name.to_s
           rel ||= resource_name.is_a?(Symbol) ? resource_name.to_s : resource_name
-          relations[relation_name] = {type: :one2many, rel: rel, data_path: data_path, klass: (type || relation_name.classify.constantize)}
+          relations[relation_name] = {type: :one2many, rel: rel, data_path: data_path, klass: (type || relation_name.classify.constantize), cache: nil}
         else
           raise ArgumentError.new 'Resource name should be either String or Symbol.'
         end
@@ -272,14 +294,6 @@ module RestApiProvider
         fields[name] = {type: nil, default: nil}
       end
 
-    end
-
-    def self.path
-      @path || "/#{self.name.underscore.pluralize.downcase}/:slug"
-    end
-
-    def self.content
-      @content || 'application/json'
     end
 
     # inject class instance variables & methods into Entity subclass
@@ -376,91 +390,113 @@ module RestApiProvider
       key = name.to_s
       # if method name has = sign at the end (a=,b =, etc.)
       if key =~ /=$/
-        # get the method name without = sign
-        key = key.chop.underscore.to_sym
-        # if we've defined a proper field in model (entity) class
-        if self.class.fields.key?(key)
-          # if field's type was specified (explicitly)
-          if !self.class.fields[key][:type].nil?
-            case self.class.fields[key][:type].name
-              when 'String'
-                @attributes[key] = args[0].to_s
-              when 'Integer', 'Fixnum', 'Bignum'
-                begin
-                  @attributes[key] = args[0].is_a?(Integer) ? args[0] : Integer(args[0])
-                rescue
-                  # do nothing
-                end
-              when 'Float'
-                begin
-                  @attributes[key] = args[0].is_a?(Float) ? args[0] : Float(args[0])
-                rescue
-                  # do nothing
-                end
-              when 'Date'
-                begin
-                  @attributes[key] = args[0].is_a?(Date) ? args[0] : Date.parse(args[0])
-                rescue
-                  # do nothing
-                end
-              when 'Time'
-                begin
-                  @attributes[key] = args[0].is_a?(Time) ? args[0] : Time.parse(args[0])
-                rescue
-                  # do nothing
-                end
-              when 'Array', 'Hash'
-                begin
-                  @attributes[key] = JSON.parse(args[0].to_json)
-                rescue
-                  # do nothing
-                end
-              else
-                # given type is not supported by implicit casting
-                raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}, given: #{args[0].class}"
-            end
-          else
-            # else assign a value as-is
-            begin
-              @attributes[key] = JSON.parse(args[0].to_json)
-            rescue
-              @attributes[key] = args[0]
-            end
+        handle_field_setter key, *args
+      # if method name has not = sign at the end (a,b, etc.)
+      else
+        handle_field_getter key, *args
+      end
+    end
+
+    private
+
+    def handle_field_getter(key, *args)
+      # get a method name
+      key = key.underscore.to_sym
+      # if attribute exists (and a proper field was defined in the model's class) - just return it
+      if self.class.fields.key?(key)
+        @attributes[key]
+      # maybe it's a relationship? if so - should request for
+      else
+        handle_relation_getter key, *args
+      end
+    end
+
+    def handle_field_setter(key, *args)
+      # get the method name without '=' sign
+      key = key.chop.underscore.to_sym
+      # if we've defined a proper field in model (entity) class
+      if self.class.fields.key?(key)
+        # if field's type was specified (explicitly)
+        if !self.class.fields[key][:type].nil?
+          case self.class.fields[key][:type].name
+            when 'String'
+              @attributes[key] = args[0].to_s
+            when 'Integer', 'Fixnum', 'Bignum'
+              begin
+                @attributes[key] = args[0].is_a?(Integer) ? args[0] : Integer(args[0])
+              rescue
+                # do nothing
+              end
+            when 'Float'
+              begin
+                @attributes[key] = args[0].is_a?(Float) ? args[0] : Float(args[0])
+              rescue
+                # do nothing
+              end
+            when 'Date'
+              begin
+                @attributes[key] = args[0].is_a?(Date) ? args[0] : Date.parse(args[0])
+              rescue
+                # do nothing
+              end
+            when 'Time'
+              begin
+                @attributes[key] = args[0].is_a?(Time) ? args[0] : Time.parse(args[0])
+              rescue
+                # do nothing
+              end
+            when 'Array', 'Hash'
+              begin
+                @attributes[key] = JSON.parse(args[0].to_json)
+              rescue
+                # do nothing
+              end
+            else
+              # given type is not supported by implicit casting
+              raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}, given: #{args[0].class}"
+          end
+        else
+          # else assign a value as-is
+          begin
+            @attributes[key] = JSON.parse(args[0].to_json)
+          rescue
+            @attributes[key] = args[0]
           end
         end
-        # if method name has not = sign at the end (a,b, etc.)
-      else
-        # get a method name
-        key = key.underscore.to_sym
-        # if attribute exists (and a proper field was defined in the model's class) - just return it
-        if self.class.fields.key?(key)
-          @attributes[key]
-        else
-          # maybe it's a relationship? if so - should request for
-          key = key.to_s
-          if self.class.relations.key?(key)
-            relation = self.class.relations[key]
-            # try to find links attribute in the resource
-            hateoas_links = RestApiProvider.configuration.hateoas_links.is_a?(String) ? RestApiProvider.configuration.hateoas_links.underscore.to_sym : RestApiProvider.configuration.hateoas_links
-            hateoas_href = RestApiProvider.configuration.hateoas_href.is_a?(Symbol) ? RestApiProvider.configuration.hateoas_href.to_s : RestApiProvider.configuration.hateoas_href
-            rel = relation[:rel]
-            href = if @attributes[hateoas_links]
-                     @attributes[hateoas_links][rel][hateoas_href] if @attributes[hateoas_links][rel]
-                   end
-            if href
-              # make a GET request with exact url (which should point to related resource/s)
-              resp = RestApiProvider::Requester.make_request_with http_verb: RestApiProvider::HTTP_VERBS.first, url: href
-              # get an array of elements of path to data source element
-              data_path_elements = relation[:data_path].split('/').select { |x| !x.strip.empty? }
-              # if relation is one-to-many - we should map the response to Array of related resource's class
-              # which in relations storage presented as class.name string
-              if relation[:type] == :one2many
-                RestApiProvider::Mapper.map2array(resp, relation[:klass], data_path_elements)
-              else
-                RestApiProvider::Mapper.map2object(resp, relation[:klass], data_path_elements)
-              end
-            end
+      end
+
+    end
+
+    def handle_relation_getter(key, *args)
+      key = key.to_s
+      if self.class.relations.key?(key)
+        relation = self.class.relations[key]
+        # if related resource already was saved in :cache, caching enabled and true argument was provided - return it immediately
+        if self.class.relations_caching_enabled? && args.include?(true) && relation[:cache]
+          return relation[:cache]
+        end
+        # try to find links attribute in the resource
+        hateoas_links = RestApiProvider.configuration.hateoas_links.is_a?(String) ? RestApiProvider.configuration.hateoas_links.underscore.to_sym : RestApiProvider.configuration.hateoas_links
+        hateoas_href = RestApiProvider.configuration.hateoas_href.is_a?(Symbol) ? RestApiProvider.configuration.hateoas_href.to_s : RestApiProvider.configuration.hateoas_href
+        rel = relation[:rel]
+        href = if @attributes[hateoas_links]
+                 @attributes[hateoas_links][rel][hateoas_href] if @attributes[hateoas_links][rel]
+               end
+        if href
+          # make a GET request with exact url (which should point to related resource/s)
+          resp = RestApiProvider::Requester.make_request_with http_verb: RestApiProvider::HTTP_VERBS.first, url: href
+          # get an array of elements of path to data source element
+          data_path_elements = relation[:data_path].split('/').select { |x| !x.strip.empty? }
+          # if relation is one-to-many - we should map the response to Array of related resource's class
+          # which in relations storage presented as class.name string
+          if relation[:type] == :one2many
+            obj = RestApiProvider::Mapper.map2array(resp, relation[:klass], data_path_elements)
+          else
+            obj = RestApiProvider::Mapper.map2object(resp, relation[:klass], data_path_elements)
           end
+          # write into cache if relations caching enabled
+          self.class.set_relation_cache(key, obj) if self.class.relations_caching_enabled?
+          obj
         end
       end
     end

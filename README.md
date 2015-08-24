@@ -157,6 +157,26 @@ class Author < RestApiProvider::Resource
 end
 ```
 
+By default, related resources requested from API each time, but you can switch on the ability to store (cache) previous request result, then provide 'true' attribute to fetch related resource from cache (if you sure that resource was not modified):
+``` ruby
+class Book < RestApiProvider::Resource
+ enable_relations_caching
+ 
+ belongs_to :author, rel: 'lib:author'
+end
+
+class Author < RestApiProvider::Resource
+ has_many :books, rel: 'lib:books', data_path: '/data'
+end
+
+book = new Book
+Book.relations_caching_enabled? #true
+book.author #will be requested from API, because cache is empty at the moment
+book.author(true) #will be fetched from cache
+```
+
+Each relation calling without 'true' attribute will refresh cache data.
+
 ## Requests
 ### Default methods
 There are some pre-defined request methods (name=>http_verb):
@@ -247,5 +267,6 @@ So far you can get a mapping JSON to:
 _If a response body is blank, then ::Mapper provides ::ApiResponse class object._
 
 ### TODO
+* escape/unescape HTML fields
 * async requests
 * cache
