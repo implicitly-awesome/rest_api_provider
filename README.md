@@ -171,7 +171,8 @@ end
 
 book = new Book
 Book.relations_caching_enabled? #true
-book.author #will be requested from API, because cache is empty at the moment
+book.author(true) #will be requested from API, because cache is empty at the moment
+book.author #will be requested from API, because attribute wasn't provided
 book.author(true) #will be fetched from cache
 ```
 
