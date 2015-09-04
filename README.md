@@ -1,5 +1,5 @@
 # REST API Provider
-Simple REST API Provider implements an abstract which allows you to make a requests to REST API, get a response and map it to your POCO class object (RestApiProvider::Resource).
+Simple REST API Provider implements an abstract which allows you to make a requests to REST API, get a response and map it to your class object (RestApiProvider::Resource).
 
 ## Setup
 This gem was not published to RubyGems.org so far, so in your Gemfile use:
@@ -57,6 +57,9 @@ Supported field types:
 * Time
 * Array
 * Hash
+
+and...
+* your custom classes
 
 ### Slugs and included Resources
 Consider _slug_ as an identifier of the particular Resource item.

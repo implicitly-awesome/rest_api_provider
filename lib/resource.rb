@@ -36,9 +36,9 @@ module RestApiProvider
       end
 
       def field(name, type: nil, default: nil)
-        if type && !RestApiProvider::DATA_TYPES.include?(type)
-          raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}"
-        end
+        # if type && !RestApiProvider::DATA_TYPES.include?(type)
+        #   raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}"
+        # end
         name = name.underscore.to_sym if name.is_a? String
         fields[name] = {type: type, default: default}
       end
@@ -60,7 +60,7 @@ module RestApiProvider
       end
 
       def clear_cache
-        @_relations.values.each{|r| r[:cache] = nil}
+        @_relations.values.each { |r| r[:cache] = nil }
       end
 
       def has_one(resource_name, rel: nil, data_path: '', type: nil)
@@ -149,7 +149,7 @@ module RestApiProvider
             slugs.each do |k, v|
               request_path.gsub!(/:#{k.to_s}/, v || '')
             end
-            # or just clear path from the first :slug occuring
+            # or just clear path from the first :slug occurring
           else
             request_path.gsub!(/:.+/, '')
           end
@@ -213,7 +213,7 @@ module RestApiProvider
       # get the method name without '=' sign
       key = key.chop.underscore.to_sym
       # if we've defined a proper field in model (entity) class
-      if self.class.fields.key?(key)
+      if self.class.fields.key?(key) && args[0]
         # if field's type was specified (explicitly)
         if !self.class.fields[key][:type].nil?
           case self.class.fields[key][:type].name
@@ -249,9 +249,30 @@ module RestApiProvider
               rescue
                 # do nothing
               end
+            # some custom class
             else
-              # given type is not supported by implicit casting
-              raise TypeError, "Unsupported type. Expected one of: #{RestApiProvider::DATA_TYPES.to_s}, given: #{args[0].class}"
+              begin
+                obj = nil
+                case args[0].class.name
+                  when 'String'
+                    obj = self.class.fields[key][:type].name.constantize.new
+                    JSON.parse(args[0].to_json).each do |k, v|
+                      begin
+                        obj.send "#{k}=", v
+                      rescue
+                        next
+                      end
+                    end
+                  when self.class.fields[key][:type].name
+                    obj = args[0]
+                  else
+                    raise TypeError, 'Unknown type.'
+                end
+                @attributes[key] = obj
+              rescue
+                # given type is not supported by implicit casting
+                raise TypeError, 'Unknown type.'
+              end
           end
         else
           # else assign a value as-is

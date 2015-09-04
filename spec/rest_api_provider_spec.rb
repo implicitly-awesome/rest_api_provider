@@ -24,10 +24,17 @@ describe RestApiProvider do
   end
 
   describe RestApiProvider::Resource do
+    class CustomClass
+      attr_reader :test
+      def initialize
+        @test = 'custom_class'
+      end
+    end
     class TestResource < RestApiProvider::Resource
       field :a, type: Integer, default: 1
       field :b, type: String
       field :c
+      field :d, type: CustomClass, default: nil
 
       get :get_tests, '/tests'
       get :custom_result, result: Hash
@@ -430,6 +437,12 @@ describe RestApiProvider do
         it 'assigns new value of proper type' do
           resource_obj.b = '2'
           expect(resource_obj.b).to eq('2')
+        end
+
+        it 'assigns new value of proper type (custom class)' do
+          resource_obj.d = CustomClass.new
+          expect(resource_obj.d).not_to be_nil
+          expect(resource_obj.d.test).to eq('custom_class')
         end
 
         it 'does not assign new value of unexpected type' do
